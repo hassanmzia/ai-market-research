@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # ==========================================================================
   # PostgreSQL Database - Port 5463
@@ -161,7 +159,7 @@ services:
       dockerfile: Dockerfile
     container_name: amr-celery-worker
     restart: unless-stopped
-    command: sh -c "python manage.py migrate --noinput && celery -A config worker -l info --concurrency=4"
+    command: sh -c "python manage.py makemigrations accounts research reports notifications --noinput && python manage.py migrate --noinput && celery -A config worker -l info --concurrency=4"
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-dev-key-change-in-production}
@@ -192,7 +190,7 @@ services:
       dockerfile: Dockerfile
     container_name: amr-celery-beat
     restart: unless-stopped
-    command: sh -c "python manage.py migrate --noinput && celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    command: sh -c "python manage.py makemigrations accounts research reports notifications --noinput && python manage.py migrate --noinput && celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-dev-key-change-in-production}
@@ -237,7 +235,7 @@ services:
     networks:
       - amr-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4063/health"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:4063/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 3

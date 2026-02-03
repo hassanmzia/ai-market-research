@@ -19,7 +19,7 @@ const mcpRouter = require('./routes/mcp');
 // Configuration
 // ---------------------------------------------------------------------------
 const PORT = parseInt(process.env.PORT || '4063', 10);
-const DJANGO_URL = process.env.DJANGO_URL || 'http://django-api:8063';
+const DJANGO_URL = process.env.DJANGO_API_URL || process.env.DJANGO_URL || 'http://django-api:8063';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 
 // ---------------------------------------------------------------------------
