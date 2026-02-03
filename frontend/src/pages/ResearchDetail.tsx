@@ -32,7 +32,7 @@ import type { ResearchTask, ResearchResult } from '../types';
 
 type TabKey = 'overview' | 'competitors' | 'analysis' | 'swot' | 'report';
 
-const TABS: { key: TabKey; label: string; icon: React.FC<{ size?: number }> }[] = [
+const TABS: { key: TabKey; label: string; icon: React.ComponentType<{ size?: number | string }> }[] = [
   { key: 'overview', label: 'Overview', icon: FileText },
   { key: 'competitors', label: 'Competitors', icon: Users },
   { key: 'analysis', label: 'Analysis', icon: BarChart3 },
