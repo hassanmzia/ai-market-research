@@ -96,12 +96,21 @@ class ReportAgent(BaseAgent):
 
         report_context = self._build_report_context(context)
 
+        sector_data = context.get("sector_identification", {})
+        sector = sector_data.get("sector", "Unknown")
+
+        competitor_data = context.get("competitor_discovery", {})
+        comp_list = competitor_data.get("competitors", [])
+        competitor_names = [c.get("name", "") for c in comp_list if c.get("name")]
+
         # Step 1 -- Try MCP generate_report for any template or baseline
         mcp_result = await self.call_mcp_tool(
             "generate_report",
             {
                 "company_name": canonical_name,
-                "data": json.dumps(context, default=str)[:8000],
+                "sector": sector,
+                "competitors": competitor_names,
+                "context": report_context[:8000],
             },
         )
         mcp_report = ""
