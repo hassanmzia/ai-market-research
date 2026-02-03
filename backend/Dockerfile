@@ -6,4 +6,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 RUN python manage.py collectstatic --noinput 2>/dev/null || true
 EXPOSE 8063
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py create_default_admin 2>/dev/null; uvicorn config.asgi:application --host 0.0.0.0 --port 8063"]
+CMD ["sh", "-c", "python manage.py makemigrations accounts research reports notifications --noinput && python manage.py migrate --noinput && python manage.py create_default_admin 2>/dev/null; uvicorn config.asgi:application --host 0.0.0.0 --port 8063"]
