@@ -1,0 +1,274 @@
+version: "3.9"
+
+services:
+  # ==========================================================================
+  # PostgreSQL Database - Port 5463
+  # ==========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: amr-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ai_market_research}
+      POSTGRES_USER: ${POSTGRES_USER:-amr_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-amr_secure_password_2024}
+    ports:
+      - "${POSTGRES_PORT_HOST:-5463}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - amr-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-amr_user} -d ${POSTGRES_DB:-ai_market_research}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # Redis - Port 6479
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: amr-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT_HOST:-6479}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - amr-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # MCP Server - Port 9063
+  # ==========================================================================
+  mcp-server:
+    build:
+      context: ./mcp_server
+      dockerfile: Dockerfile
+    container_name: amr-mcp-server
+    restart: unless-stopped
+    ports:
+      - "${MCP_SERVER_PORT:-9063}:9063"
+    environment:
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=9063
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://redis:6379/2
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - amr-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9063/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # A2A Agent Orchestrator - Port 7063
+  # ==========================================================================
+  a2a-orchestrator:
+    build:
+      context: ./a2a_agents
+      dockerfile: Dockerfile
+    container_name: amr-a2a-orchestrator
+    restart: unless-stopped
+    ports:
+      - "${A2A_ORCHESTRATOR_PORT:-7063}:7063"
+    environment:
+      - A2A_HOST=0.0.0.0
+      - A2A_PORT=7063
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - LLM_MODEL_ID=${LLM_MODEL_ID:-gpt-4o-mini}
+      - MCP_SERVER_URL=http://mcp-server:9063
+      - REDIS_URL=redis://redis:6379/3
+      - DJANGO_API_URL=http://django-api:8063
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - amr-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7063/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # Django API Backend - Port 8063
+  # ==========================================================================
+  django-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: amr-django-api
+    restart: unless-stopped
+    ports:
+      - "${DJANGO_API_PORT:-8063}:8063"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-dev-key-change-in-production}
+      - DJANGO_DEBUG=${DJANGO_DEBUG:-True}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-*}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_market_research}
+      - POSTGRES_USER=${POSTGRES_USER:-amr_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-amr_secure_password_2024}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - LLM_MODEL_ID=${LLM_MODEL_ID:-gpt-4o-mini}
+      - MCP_SERVER_URL=http://mcp-server:9063
+      - A2A_ORCHESTRATOR_URL=http://a2a-orchestrator:7063
+      - SITE_URL=${SITE_URL:-http://172.168.1.95:3063}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-jwt-dev-secret-key}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mcp-server:
+        condition: service_healthy
+    volumes:
+      - django_static:/app/static_collected
+      - django_media:/app/media
+    networks:
+      - amr-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8063/api/health/"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # Celery Worker (async tasks)
+  # ==========================================================================
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: amr-celery-worker
+    restart: unless-stopped
+    command: celery -A config worker -l info --concurrency=4
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-dev-key-change-in-production}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_market_research}
+      - POSTGRES_USER=${POSTGRES_USER:-amr_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-amr_secure_password_2024}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - LLM_MODEL_ID=${LLM_MODEL_ID:-gpt-4o-mini}
+      - MCP_SERVER_URL=http://mcp-server:9063
+      - A2A_ORCHESTRATOR_URL=http://a2a-orchestrator:7063
+    depends_on:
+      django-api:
+        condition: service_healthy
+    networks:
+      - amr-network
+
+  # ==========================================================================
+  # Celery Beat (scheduled tasks)
+  # ==========================================================================
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: amr-celery-beat
+    restart: unless-stopped
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-dev-key-change-in-production}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_market_research}
+      - POSTGRES_USER=${POSTGRES_USER:-amr_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-amr_secure_password_2024}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+    depends_on:
+      django-api:
+        condition: service_healthy
+    networks:
+      - amr-network
+
+  # ==========================================================================
+  # Node.js API Gateway / BFF - Port 4063
+  # ==========================================================================
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: amr-gateway
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_PORT:-4063}:4063"
+    environment:
+      - NODE_ENV=production
+      - PORT=4063
+      - DJANGO_API_URL=http://django-api:8063
+      - A2A_ORCHESTRATOR_URL=http://a2a-orchestrator:7063
+      - MCP_SERVER_URL=http://mcp-server:9063
+      - REDIS_URL=redis://redis:6379/4
+      - JWT_SECRET=${JWT_SECRET_KEY:-jwt-dev-secret-key}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-30}
+    depends_on:
+      django-api:
+        condition: service_healthy
+      a2a-orchestrator:
+        condition: service_healthy
+    networks:
+      - amr-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4063/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # React Frontend - Port 3063 (main site)
+  # ==========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=http://172.168.1.95:4063
+        - REACT_APP_WS_URL=ws://172.168.1.95:4063
+    container_name: amr-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3063}:80"
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - amr-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  django_static:
+  django_media:
+
+networks:
+  amr-network:
+    driver: bridge
+    name: amr-network

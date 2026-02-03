@@ -1,0 +1,153 @@
+'use strict';
+
+const http = require('http');
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const compression = require('compression');
+
+const { authenticate } = require('./middleware/auth');
+const { authLimiter, generalLimiter, closeRedis } = require('./middleware/rateLimiter');
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { createProxy } = require('./services/proxyService');
+const wsService = require('./services/wsService');
+const agentsRouter = require('./routes/agents');
+const mcpRouter = require('./routes/mcp');
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+const PORT = parseInt(process.env.PORT || '4063', 10);
+const DJANGO_URL = process.env.DJANGO_URL || 'http://django-api:8063';
+const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+
+// ---------------------------------------------------------------------------
+// Express application
+// ---------------------------------------------------------------------------
+const app = express();
+
+// Trust proxy (for correct IP detection behind Docker / nginx)
+app.set('trust proxy', 1);
+
+// ---------------------------------------------------------------------------
+// Global middleware
+// ---------------------------------------------------------------------------
+app.use(helmet({
+  contentSecurityPolicy: false, // Let frontend handle CSP
+}));
+
+app.use(cors({
+  origin: CORS_ORIGIN === '*' ? true : CORS_ORIGIN.split(','),
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+}));
+
+app.use(compression());
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// Parse JSON for non-proxied routes
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// ---------------------------------------------------------------------------
+// Health check (no auth, no rate limit)
+// ---------------------------------------------------------------------------
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'healthy',
+    service: 'amr-api-gateway',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Django proxy routes
+// ---------------------------------------------------------------------------
+const djangoProxy = createProxy(DJANGO_URL, { changeOrigin: true });
+
+// Auth routes get a stricter rate limit
+app.use('/api/auth', authLimiter, djangoProxy);
+
+// Other Django-backed routes
+app.use('/api/research', authenticate, generalLimiter, djangoProxy);
+app.use('/api/reports', authenticate, generalLimiter, djangoProxy);
+app.use('/api/notifications', authenticate, generalLimiter, djangoProxy);
+app.use('/api/dashboard', authenticate, generalLimiter, djangoProxy);
+
+// ---------------------------------------------------------------------------
+// A2A orchestrator routes (agents)
+// ---------------------------------------------------------------------------
+app.use('/api/agents', agentsRouter);
+
+// ---------------------------------------------------------------------------
+// MCP server routes
+// ---------------------------------------------------------------------------
+app.use('/api/mcp', mcpRouter);
+
+// ---------------------------------------------------------------------------
+// Catch-all & error handling
+// ---------------------------------------------------------------------------
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+// ---------------------------------------------------------------------------
+// HTTP + WebSocket server
+// ---------------------------------------------------------------------------
+const server = http.createServer(app);
+
+// Attach WebSocket handling
+wsService.attach(server);
+
+server.listen(PORT, () => {
+  console.log(`[Gateway] AI Market Research API Gateway listening on port ${PORT}`);
+  console.log(`[Gateway] Environment: ${process.env.NODE_ENV || 'development'}`);
+});
+
+// ---------------------------------------------------------------------------
+// Graceful shutdown
+// ---------------------------------------------------------------------------
+function shutdown(signal) {
+  console.log(`[Gateway] Received ${signal}. Starting graceful shutdown...`);
+
+  // Stop accepting new connections
+  server.close((err) => {
+    if (err) {
+      console.error('[Gateway] Error closing HTTP server:', err.message);
+    } else {
+      console.log('[Gateway] HTTP server closed');
+    }
+
+    // Close WebSocket connections
+    wsService.shutdown();
+
+    // Close Redis connection
+    closeRedis();
+
+    console.log('[Gateway] Shutdown complete');
+    process.exit(err ? 1 : 0);
+  });
+
+  // Force exit after 15 seconds
+  setTimeout(() => {
+    console.error('[Gateway] Forceful shutdown after timeout');
+    process.exit(1);
+  }, 15_000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Handle uncaught errors
+process.on('uncaughtException', (err) => {
+  console.error('[Gateway] Uncaught exception:', err);
+  shutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Gateway] Unhandled rejection:', reason);
+});
+
+module.exports = app;
