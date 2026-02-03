@@ -2,6 +2,18 @@ import { create } from 'zustand';
 import { authAPI } from '../services/api';
 import type { User } from '../types';
 
+function extractTokens(data: any): { accessToken: string; refreshToken: string } {
+  // Django returns { tokens: { access, refresh } }
+  if (data.tokens) {
+    return { accessToken: data.tokens.access, refreshToken: data.tokens.refresh };
+  }
+  // Fallback flat format
+  return {
+    accessToken: data.access_token || data.access || '',
+    refreshToken: data.refresh_token || data.refresh || '',
+  };
+}
+
 interface AuthState {
   user: User | null;
   token: string | null;
@@ -37,15 +49,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await authAPI.login(email, password);
-      const { access_token, refresh_token, user } = response.data;
+      const { accessToken, refreshToken } = extractTokens(response.data);
+      const user = (response.data as any).user;
 
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
+      localStorage.setItem('access_token', accessToken);
+      localStorage.setItem('refresh_token', refreshToken);
 
       set({
         user,
-        token: access_token,
-        refreshToken: refresh_token,
+        token: accessToken,
+        refreshToken,
         isAuthenticated: true,
         loading: false,
         error: null,
@@ -62,22 +75,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await authAPI.register(data);
-      const { access_token, refresh_token, user } = response.data;
+      const { accessToken, refreshToken } = extractTokens(response.data);
+      const user = (response.data as any).user;
 
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
+      localStorage.setItem('access_token', accessToken);
+      localStorage.setItem('refresh_token', refreshToken);
 
       set({
         user,
-        token: access_token,
-        refreshToken: refresh_token,
+        token: accessToken,
+        refreshToken,
         isAuthenticated: true,
         loading: false,
         error: null,
       });
     } catch (err: any) {
-      const message =
-        err.response?.data?.detail || err.response?.data?.message || 'Registration failed';
+      const errData = err.response?.data;
+      let message = 'Registration failed';
+      if (errData?.detail) {
+        message = errData.detail;
+      } else if (errData?.message) {
+        message = errData.message;
+      } else if (typeof errData === 'object' && errData !== null) {
+        // DRF validation errors: { field: ["error1", ...] }
+        const fieldErrors = Object.entries(errData)
+          .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : val}`)
+          .join('; ');
+        if (fieldErrors) message = fieldErrors;
+      }
       set({ loading: false, error: message });
       throw new Error(message);
     }
@@ -104,14 +129,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     try {
       const response = await authAPI.refresh(refreshToken);
-      const { access_token, refresh_token } = response.data;
+      const data = response.data as any;
+      const accessToken = data.access || data.access_token || '';
+      const newRefresh = data.refresh || data.refresh_token || refreshToken;
 
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
+      localStorage.setItem('access_token', accessToken);
+      localStorage.setItem('refresh_token', newRefresh);
 
       set({
-        token: access_token,
-        refreshToken: refresh_token,
+        token: accessToken,
+        refreshToken: newRefresh,
         isAuthenticated: true,
       });
     } catch {

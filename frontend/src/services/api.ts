@@ -81,10 +81,10 @@ api.interceptors.response.use(
       }
 
       try {
-        const response = await axios.post(`${API_URL}/api/auth/refresh`, {
-          refresh_token: refreshToken,
+        const response = await axios.post(`${API_URL}/api/auth/token/refresh/`, {
+          refresh: refreshToken,
         });
-        const { access_token, refresh_token } = response.data;
+        const { access: access_token, refresh: refresh_token } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
         processQueue(null, access_token);
@@ -110,7 +110,7 @@ api.interceptors.response.use(
 // ===================== Auth API =====================
 export const authAPI = {
   login: (email: string, password: string) =>
-    api.post<{ access_token: string; refresh_token: string; user: User }>('/api/auth/login', {
+    api.post<{ access_token: string; refresh_token: string; user: User }>('/api/auth/login/', {
       email,
       password,
     }),
@@ -122,65 +122,65 @@ export const authAPI = {
     last_name: string;
     company?: string;
   }) =>
-    api.post<{ access_token: string; refresh_token: string; user: User }>('/api/auth/register', data),
+    api.post<{ access_token: string; refresh_token: string; user: User }>('/api/auth/register/', data),
 
   refresh: (refreshToken: string) =>
-    api.post<{ access_token: string; refresh_token: string }>('/api/auth/refresh', {
-      refresh_token: refreshToken,
+    api.post<{ access_token: string; refresh_token: string }>('/api/auth/token/refresh/', {
+      refresh: refreshToken,
     }),
 
-  getProfile: () => api.get<User>('/api/auth/profile'),
+  getProfile: () => api.get<User>('/api/auth/profile/'),
 
-  updateProfile: (data: Partial<User>) => api.put<User>('/api/auth/profile', data),
+  updateProfile: (data: Partial<User>) => api.put<User>('/api/auth/profile/', data),
 
   changePassword: (data: { current_password: string; new_password: string }) =>
-    api.post('/api/auth/change-password', data),
+    api.post('/api/auth/change-password/', data),
 };
 
 // ===================== Research API =====================
 export const researchAPI = {
-  getProjects: () => api.get<ResearchProject[]>('/api/research/projects'),
+  getProjects: () => api.get<ResearchProject[]>('/api/research/projects/'),
 
   createProject: (data: { name: string; description?: string }) =>
-    api.post<ResearchProject>('/api/research/projects', data),
+    api.post<ResearchProject>('/api/research/projects/', data),
 
-  getProject: (id: number) => api.get<ResearchProject>(`/api/research/projects/${id}`),
+  getProject: (id: number) => api.get<ResearchProject>(`/api/research/projects/${id}/`),
 
   startResearch: (data: { company_name: string; project_id?: number }) =>
-    api.post<{ task_id: string; task: ResearchTask }>('/api/research/start', data),
+    api.post<{ task_id: string; task: ResearchTask }>('/api/research/tasks/start_research/', data),
 
   getTasks: (params?: { status?: string; search?: string }) =>
-    api.get<ResearchTask[]>('/api/research/tasks', { params }),
+    api.get<ResearchTask[]>('/api/research/tasks/', { params }),
 
-  getTask: (taskId: string) => api.get<ResearchTask>(`/api/research/tasks/${taskId}`),
+  getTask: (taskId: string) => api.get<ResearchTask>(`/api/research/tasks/${taskId}/`),
 
   getTaskResult: (taskId: string) =>
-    api.get<ResearchResult>(`/api/research/tasks/${taskId}/result`),
+    api.get<ResearchResult>(`/api/research/tasks/${taskId}/result/`),
 
-  cancelTask: (taskId: string) => api.post(`/api/research/tasks/${taskId}/cancel`),
+  cancelTask: (taskId: string) => api.post(`/api/research/tasks/${taskId}/cancel/`),
 };
 
 // ===================== Reports API =====================
 export const reportsAPI = {
   getReports: (params?: { search?: string; format?: string }) =>
-    api.get<SavedReport[]>('/api/reports', { params }),
+    api.get<SavedReport[]>('/api/reports/', { params }),
 
-  getReport: (id: number) => api.get<SavedReport>(`/api/reports/${id}`),
+  getReport: (id: number) => api.get<SavedReport>(`/api/reports/${id}/`),
 
   saveReport: (data: {
     task_id: string;
     title: string;
     description?: string;
     format?: string;
-  }) => api.post<SavedReport>('/api/reports', data),
+  }) => api.post<SavedReport>('/api/reports/', data),
 
-  deleteReport: (id: number) => api.delete(`/api/reports/${id}`),
+  deleteReport: (id: number) => api.delete(`/api/reports/${id}/`),
 
   shareReport: (id: number) =>
-    api.post<{ share_token: string; share_url: string }>(`/api/reports/${id}/share`),
+    api.post<{ share_token: string; share_url: string }>(`/api/reports/${id}/share/`),
 
   downloadReport: (id: number, format: string) =>
-    api.get(`/api/reports/${id}/download`, {
+    api.get(`/api/reports/${id}/download/`, {
       params: { format },
       responseType: 'blob',
     }),
@@ -205,16 +205,16 @@ export const watchlistAPI = {
 
 // ===================== Notifications API =====================
 export const notificationsAPI = {
-  getNotifications: () => api.get<Notification[]>('/api/notifications'),
+  getNotifications: () => api.get<Notification[]>('/api/notifications/'),
 
-  markRead: (id: number) => api.put(`/api/notifications/${id}/read`),
+  markRead: (id: number) => api.put(`/api/notifications/${id}/read/`),
 
-  markAllRead: () => api.put('/api/notifications/read-all'),
+  markAllRead: () => api.put('/api/notifications/read-all/'),
 };
 
 // ===================== Dashboard API =====================
 export const dashboardAPI = {
-  getStats: () => api.get<DashboardStats>('/api/dashboard/stats'),
+  getStats: () => api.get<DashboardStats>('/api/dashboard/'),
 };
 
 // ===================== Agents API =====================
