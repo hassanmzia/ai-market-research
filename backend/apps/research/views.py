@@ -58,7 +58,7 @@ class ResearchTaskViewSet(viewsets.ReadOnlyModelViewSet):
             project__user=self.request.user
         ).select_related('project', 'result')
 
-    @action(detail=False, methods=['post'], url_path='start')
+    @action(detail=False, methods=['post'], url_path='start_research')
     def start_research(self, request):
         """Start a new research task for a company."""
         serializer = StartResearchSerializer(data=request.data, context={'request': request})
