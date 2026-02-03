@@ -51,6 +51,9 @@ class ValidationAgent(BaseAgent):
                 text_block = content[0] if isinstance(content[0], dict) else {}
                 mcp_details = text_block.get("text", json.dumps(content))
             elif isinstance(content, dict):
+                # Check the is_valid field from validate_company tool
+                if content.get("is_valid") is False:
+                    mcp_valid = False
                 mcp_details = content.get("text", json.dumps(content))
             else:
                 mcp_details = str(content)
