@@ -45,6 +45,7 @@ const Register: React.FC = () => {
         last_name: formData.last_name,
         email: formData.email,
         password: formData.password,
+        password_confirm: formData.confirm_password,
         company: formData.company || undefined,
       });
       toast.success('Account created successfully!');
