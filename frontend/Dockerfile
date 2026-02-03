@@ -1,4 +1,4 @@
-FROM node:20-alpine AS build
+FROM node:18-alpine AS build
 WORKDIR /app
 ARG REACT_APP_API_URL=http://172.168.1.95:4063
 ARG REACT_APP_WS_URL=ws://172.168.1.95:4063
