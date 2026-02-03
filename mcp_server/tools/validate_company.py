@@ -108,14 +108,8 @@ async def run(company_name: str) -> Dict[str, Any]:
         results = DDGS().text(query, max_results=5)
     except Exception as exc:
         logger.error("Search failed for '%s': %s", company_name, exc)
-        return {
-            "company": company_name,
-            "is_valid": False,
-            "confidence": "low",
-            "evidence_count": 0,
-            "evidence": [],
-            "message": f"Search failed: {exc}",
-        }
+        # Re-raise so the MCP server returns an error (not cached)
+        raise RuntimeError(f"Search temporarily unavailable: {exc}") from exc
 
     if not results:
         return {
