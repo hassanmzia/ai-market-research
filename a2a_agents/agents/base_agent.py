@@ -71,7 +71,7 @@ class BaseAgent(ABC):
     async def call_mcp_tool(
         self, tool_name: str, arguments: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Invoke a tool on the MCP server via HTTP JSON-RPC.
+        """Invoke a tool on the MCP server via HTTP.
 
         Args:
             tool_name: The name of the MCP tool to call.
@@ -82,27 +82,23 @@ class BaseAgent(ABC):
         """
         client = await self._get_http_client()
         payload = {
-            "jsonrpc": "2.0",
-            "id": f"{self.name}-{tool_name}-{int(time.time() * 1000)}",
-            "method": "tools/call",
-            "params": {
-                "name": tool_name,
-                "arguments": arguments,
-            },
+            "name": tool_name,
+            "arguments": arguments,
         }
         try:
             response = await client.post(
-                f"{self._mcp_url}/mcp",
+                f"{self._mcp_url}/mcp/tools/call",
                 json=payload,
                 headers={"Content-Type": "application/json"},
             )
             response.raise_for_status()
             result = response.json()
-            if "error" in result:
+            if result.get("status") == "error" or result.get("error"):
+                error_msg = result.get("error", "Unknown MCP error")
                 logger.error(
-                    "MCP tool %s returned error: %s", tool_name, result["error"]
+                    "MCP tool %s returned error: %s", tool_name, error_msg
                 )
-                return {"error": result["error"]}
+                return {"error": error_msg}
             return result.get("result", result)
         except httpx.HTTPStatusError as exc:
             logger.error(
