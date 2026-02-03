@@ -161,7 +161,7 @@ services:
       dockerfile: Dockerfile
     container_name: amr-celery-worker
     restart: unless-stopped
-    command: celery -A config worker -l info --concurrency=4
+    command: sh -c "python manage.py migrate --noinput && celery -A config worker -l info --concurrency=4"
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-dev-key-change-in-production}
@@ -192,7 +192,7 @@ services:
       dockerfile: Dockerfile
     container_name: amr-celery-beat
     restart: unless-stopped
-    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: sh -c "python manage.py migrate --noinput && celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-dev-key-change-in-production}
