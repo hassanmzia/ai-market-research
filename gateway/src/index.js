@@ -21,6 +21,7 @@ const mcpRouter = require('./routes/mcp');
 const PORT = parseInt(process.env.PORT || '4063', 10);
 const DJANGO_URL = process.env.DJANGO_API_URL || process.env.DJANGO_URL || 'http://django-api:8063';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+const DJANGO_PATHS = ['/api/auth/', '/api/research/', '/api/reports/', '/api/notifications/', '/api/dashboard/'];
 
 // ---------------------------------------------------------------------------
 // Express application
@@ -47,9 +48,22 @@ app.use(cors({
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-// Parse JSON for non-proxied routes
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Parse JSON only for non-proxied routes (agents, mcp, etc.)
+// Django-proxied routes must NOT go through body parsing so that
+// http-proxy-middleware can forward the raw stream without fixRequestBody.
+const jsonParser = express.json({ limit: '10mb' });
+const urlencodedParser = express.urlencoded({ extended: true, limit: '10mb' });
+
+app.use((req, res, next) => {
+  // Skip body parsing for paths that will be proxied to Django
+  if (DJANGO_PATHS.some((p) => req.originalUrl.startsWith(p))) {
+    return next();
+  }
+  jsonParser(req, res, (err) => {
+    if (err) return next(err);
+    urlencodedParser(req, res, next);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Health check (no auth, no rate limit)
@@ -64,18 +78,36 @@ app.get('/health', (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Django proxy routes
+// Django proxy – path-filtered at root level to preserve full URL path
 // ---------------------------------------------------------------------------
-const djangoProxy = createProxy(DJANGO_URL, { changeOrigin: true });
+const djangoProxy = createProxy(DJANGO_URL, {
+  changeOrigin: true,
+  pathFilter: (path) => DJANGO_PATHS.some((p) => path.startsWith(p)),
+});
 
-// Auth routes get a stricter rate limit
-app.use('/api/auth', authLimiter, djangoProxy);
+// Apply per-path middleware before the proxy
+app.use((req, res, next) => {
+  const url = req.originalUrl;
 
-// Other Django-backed routes
-app.use('/api/research', authenticate, generalLimiter, djangoProxy);
-app.use('/api/reports', authenticate, generalLimiter, djangoProxy);
-app.use('/api/notifications', authenticate, generalLimiter, djangoProxy);
-app.use('/api/dashboard', authenticate, generalLimiter, djangoProxy);
+  // Only intercept Django-bound paths
+  if (!DJANGO_PATHS.some((p) => url.startsWith(p))) {
+    return next();
+  }
+
+  // Auth endpoints: rate-limit only, no JWT required
+  if (url.startsWith('/api/auth/')) {
+    return authLimiter(req, res, next);
+  }
+
+  // Everything else: require JWT + general rate limit
+  authenticate(req, res, (err) => {
+    if (err) return next(err);
+    generalLimiter(req, res, next);
+  });
+});
+
+// Mount proxy at root – original path is preserved
+app.use(djangoProxy);
 
 // ---------------------------------------------------------------------------
 // A2A orchestrator routes (agents)

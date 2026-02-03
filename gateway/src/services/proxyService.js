@@ -1,6 +1,6 @@
 'use strict';
 
-const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const axios = require('axios');
 
 /**
@@ -18,11 +18,11 @@ function createProxy(target, options = {}) {
     pathRewrite: options.pathRewrite || undefined,
     // Forward auth headers
     on: {
-      proxyReq: (proxyReq, req, res) => {
-        // Re-stream the body that express.json() already consumed
-        fixRequestBody(proxyReq, req, res);
+      proxyReq: (proxyReq, req) => {
+        // Guard: skip if headers were already sent (e.g. error path)
+        if (proxyReq.headersSent) return;
         // Forward the original IP so the downstream knows the real client
-        proxyReq.setHeader('X-Forwarded-For', req.ip);
+        proxyReq.setHeader('X-Forwarded-For', req.ip || '127.0.0.1');
         if (req.user) {
           proxyReq.setHeader('X-User-Id', String(req.user.id));
           if (req.user.email) {
