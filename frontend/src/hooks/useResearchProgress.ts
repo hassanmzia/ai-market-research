@@ -23,9 +23,20 @@ export function useResearchProgress(taskId: string | null): UseResearchProgressR
   const disconnectRef = useRef<(() => void) | null>(null);
 
   const handleProgress = useCallback((data: ResearchProgress) => {
-    setProgress(data.progress);
-    setStage(data.stage);
-    setMessage(data.message);
+    // Ignore non-progress messages (e.g. connection, pong, error, raw)
+    if (typeof data.progress !== 'number' && !data.stage) {
+      return;
+    }
+
+    if (typeof data.progress === 'number') {
+      setProgress(data.progress);
+    }
+    if (data.stage) {
+      setStage(data.stage);
+    }
+    if (data.message) {
+      setMessage(data.message);
+    }
     if (data.agent_name) {
       setAgentName(data.agent_name);
     }
