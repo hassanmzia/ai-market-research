@@ -26,9 +26,9 @@ class ResearchAgent(BaseAgent):
     ]
     mcp_tools: List[str] = ["browse_page"]
 
-    async def _browse(self, url: str) -> str:
+    async def _browse(self, url: str, instructions: str = "Extract relevant company and market information") -> str:
         """Browse a page via MCP and return raw text."""
-        result = await self.call_mcp_tool("browse_page", {"url": url})
+        result = await self.call_mcp_tool("browse_page", {"url": url, "instructions": instructions})
         if "error" in result:
             return f"[Error browsing {url}: {result['error']}]"
         content = result.get("content", result)
@@ -46,9 +46,9 @@ class ResearchAgent(BaseAgent):
         news_url = f"https://www.google.com/search?q={entity_name}+latest+news"
         pricing_url = f"https://www.google.com/search?q={entity_name}+pricing+strategy"
 
-        search_content = await self._browse(search_url)
-        news_content = await self._browse(news_url)
-        pricing_content = await self._browse(pricing_url)
+        search_content = await self._browse(search_url, f"Extract company overview, products, and market position for {entity_name}")
+        news_content = await self._browse(news_url, f"Extract latest news and announcements about {entity_name}")
+        pricing_content = await self._browse(pricing_url, f"Extract pricing strategy and business model for {entity_name}")
 
         # LLM summarisation of gathered content
         llm_result = await self.call_llm_json(
