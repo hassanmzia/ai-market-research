@@ -19,6 +19,10 @@ _raw_hosts = os.environ.get('DJANGO_ALLOWED_HOSTS', os.environ.get('ALLOWED_HOST
 ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(',') if h.strip()]
 if not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['*']
+# Always allow internal Docker hostnames
+for _h in ['localhost', '127.0.0.1', 'django-api', '172.168.1.95']:
+    if _h not in ALLOWED_HOSTS and '*' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_h)
 
 INSTALLED_APPS = [
     'django.contrib.admin',

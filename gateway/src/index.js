@@ -64,18 +64,38 @@ app.get('/health', (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Django proxy routes
+// Django proxy – path-filtered at root level to preserve full URL path
 // ---------------------------------------------------------------------------
-const djangoProxy = createProxy(DJANGO_URL, { changeOrigin: true });
+const DJANGO_PATHS = ['/api/auth/', '/api/research/', '/api/reports/', '/api/notifications/', '/api/dashboard/'];
 
-// Auth routes get a stricter rate limit
-app.use('/api/auth', authLimiter, djangoProxy);
+const djangoProxy = createProxy(DJANGO_URL, {
+  changeOrigin: true,
+  pathFilter: (path) => DJANGO_PATHS.some((p) => path.startsWith(p)),
+});
 
-// Other Django-backed routes
-app.use('/api/research', authenticate, generalLimiter, djangoProxy);
-app.use('/api/reports', authenticate, generalLimiter, djangoProxy);
-app.use('/api/notifications', authenticate, generalLimiter, djangoProxy);
-app.use('/api/dashboard', authenticate, generalLimiter, djangoProxy);
+// Apply per-path middleware before the proxy
+app.use((req, res, next) => {
+  const url = req.originalUrl;
+
+  // Only intercept Django-bound paths
+  if (!DJANGO_PATHS.some((p) => url.startsWith(p))) {
+    return next();
+  }
+
+  // Auth endpoints: rate-limit only, no JWT required
+  if (url.startsWith('/api/auth/')) {
+    return authLimiter(req, res, next);
+  }
+
+  // Everything else: require JWT + general rate limit
+  authenticate(req, res, (err) => {
+    if (err) return next(err);
+    generalLimiter(req, res, next);
+  });
+});
+
+// Mount proxy at root – original path is preserved
+app.use(djangoProxy);
 
 // ---------------------------------------------------------------------------
 // A2A orchestrator routes (agents)
