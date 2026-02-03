@@ -85,7 +85,10 @@ const djangoProxy = createProxy(DJANGO_URL, {
   pathFilter: (path) => DJANGO_PATHS.some((p) => path.startsWith(p)),
 });
 
-// Apply per-path middleware before the proxy
+// Apply per-path middleware before the proxy.
+// Django handles its own JWT authentication via SimpleJWT, so the gateway
+// must NOT verify tokens locally (different signing secret). We only
+// apply rate-limiting here and let Django enforce auth.
 app.use((req, res, next) => {
   const url = req.originalUrl;
 
@@ -94,16 +97,13 @@ app.use((req, res, next) => {
     return next();
   }
 
-  // Auth endpoints: rate-limit only, no JWT required
+  // Auth endpoints: stricter rate limit
   if (url.startsWith('/api/auth/')) {
     return authLimiter(req, res, next);
   }
 
-  // Everything else: require JWT + general rate limit
-  authenticate(req, res, (err) => {
-    if (err) return next(err);
-    generalLimiter(req, res, next);
-  });
+  // All other Django paths: general rate limit only, Django handles auth
+  return generalLimiter(req, res, next);
 });
 
 // Mount proxy at root – original path is preserved
