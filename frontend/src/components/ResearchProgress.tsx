@@ -9,14 +9,14 @@ interface ResearchProgressProps {
 }
 
 const STAGES = [
-  { key: 'validating', label: 'Validation', description: 'Validating company information' },
-  { key: 'analyzing_sector', label: 'Sector Analysis', description: 'Identifying industry sector' },
-  { key: 'finding_competitors', label: 'Competitor Discovery', description: 'Finding key competitors' },
-  { key: 'researching', label: 'Financial Research', description: 'Gathering financial data' },
+  { key: 'validation', label: 'Validation', description: 'Validating company information' },
+  { key: 'sector_identification', label: 'Sector Analysis', description: 'Identifying industry sector' },
+  { key: 'competitor_discovery', label: 'Competitor Discovery', description: 'Finding key competitors' },
+  { key: 'financial_research', label: 'Financial Research', description: 'Gathering financial data' },
   { key: 'deep_research', label: 'Deep Research', description: 'In-depth market analysis' },
-  { key: 'analyzing_sentiment', label: 'Sentiment Analysis', description: 'Analyzing market sentiment' },
-  { key: 'analyzing_trends', label: 'Trend Analysis', description: 'Identifying market trends' },
-  { key: 'generating_report', label: 'Report Generation', description: 'Compiling final report' },
+  { key: 'sentiment_analysis', label: 'Sentiment Analysis', description: 'Analyzing market sentiment' },
+  { key: 'trend_analysis', label: 'Trend Analysis', description: 'Identifying market trends' },
+  { key: 'report_generation', label: 'Report Generation', description: 'Compiling final report' },
 ];
 
 const ResearchProgressComponent: React.FC<ResearchProgressProps> = ({ taskId, onComplete }) => {

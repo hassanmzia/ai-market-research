@@ -118,7 +118,7 @@ class WebSocketService {
   _connectUpstream(taskId) {
     if (this.upstreamConnections.has(taskId)) return;
 
-    const url = `${A2A_WS_URL}/ws/research/${taskId}`;
+    const url = `${A2A_WS_URL}/a2a/ws/${taskId}`;
     console.log(`[WS] Connecting upstream to ${url}`);
 
     const upstream = new WebSocket(url);

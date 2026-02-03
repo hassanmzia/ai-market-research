@@ -12,13 +12,14 @@ logger = logging.getLogger(__name__)
 A2A_ORCHESTRATOR_URL = getattr(settings, 'A2A_ORCHESTRATOR_URL', 'http://localhost:8060')
 
 STATUS_STAGES = [
-    ('validating', 10),
-    ('analyzing_sector', 25),
-    ('finding_competitors', 40),
-    ('researching', 55),
-    ('analyzing_sentiment', 70),
-    ('analyzing_trends', 85),
-    ('generating_report', 95),
+    ('validation', 10),
+    ('sector_identification', 25),
+    ('competitor_discovery', 40),
+    ('financial_research', 50),
+    ('deep_research', 60),
+    ('sentiment_analysis', 70),
+    ('trend_analysis', 85),
+    ('report_generation', 95),
 ]
 
 
@@ -110,12 +111,13 @@ def run_research_task(self, task_id):
                         continue
 
                     status_data = status_response.json()
-                    current_status = status_data.get('status', 'researching')
+                    overall_status = status_data.get('status', 'running')
+                    current_stage = status_data.get('current_stage', '')
                     current_progress = status_data.get('progress', 0)
 
-                    # Map orchestrator status to our stages
+                    # Map orchestrator current_stage to our stages
                     for stage_name, stage_progress in STATUS_STAGES:
-                        if current_status == stage_name:
+                        if current_stage == stage_name:
                             _update_task_status(task, stage_name, stage_progress)
                             break
                     else:
@@ -123,10 +125,16 @@ def run_research_task(self, task_id):
                             _update_task_status(task, task.status, min(current_progress, 95))
 
                     # Check for completion
-                    if current_status == 'completed':
+                    if overall_status == 'completed':
                         break
-                    elif current_status == 'failed':
-                        error_msg = status_data.get('error', 'Research failed in orchestrator.')
+                    elif overall_status == 'failed':
+                        # Extract error from failed stages
+                        stages = status_data.get('stages', [])
+                        error_msg = 'Research failed in orchestrator.'
+                        for s in stages:
+                            if s.get('status') == 'failed' and s.get('error'):
+                                error_msg = s['error']
+                                break
                         raise Exception(error_msg)
 
                 except httpx.RequestError as e:

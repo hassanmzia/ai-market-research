@@ -24,7 +24,7 @@ export interface ResearchTask {
   project: number;
   company_name: string;
   task_id: string;
-  status: 'pending' | 'validating' | 'analyzing_sector' | 'finding_competitors' | 'researching' | 'analyzing_sentiment' | 'analyzing_trends' | 'generating_report' | 'completed' | 'failed';
+  status: 'pending' | 'validation' | 'sector_identification' | 'competitor_discovery' | 'financial_research' | 'deep_research' | 'sentiment_analysis' | 'trend_analysis' | 'report_generation' | 'completed' | 'failed';
   progress: number;
   result?: ResearchResult;
   started_at?: string;
