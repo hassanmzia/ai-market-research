@@ -142,24 +142,26 @@ class WatchlistViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """Create a watchlist item, accepting company_name instead of company ID."""
         company_name = request.data.get('company_name', '').strip()
-        if company_name and 'company' not in request.data:
-            company = CompanyProfile.objects.filter(
-                name__iexact=company_name,
-            ).first()
-            if company is None:
-                company = CompanyProfile.objects.create(name=company_name)
-            data = {
-                'company': company.id,
-                'alert_on_news': request.data.get('alert_on_news', True),
-                'alert_on_competitor_change': request.data.get('alert_on_competitor_change', False),
-                'notes': request.data.get('notes', ''),
-            }
-            serializer = self.get_serializer(data=data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save(user=request.user)
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-        return super().create(request, *args, **kwargs)
+        if not company_name:
+            return Response(
+                {'detail': 'company_name is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        company = CompanyProfile.objects.filter(
+            name__iexact=company_name,
+        ).first()
+        if company is None:
+            company = CompanyProfile.objects.create(name=company_name)
+        data = {
+            'alert_on_news': request.data.get('alert_on_news', True),
+            'alert_on_competitor_change': request.data.get('alert_on_competitor_change', False),
+            'notes': request.data.get('notes', ''),
+        }
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=request.user, company=company)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

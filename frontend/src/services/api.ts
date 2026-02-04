@@ -198,7 +198,7 @@ export const watchlistAPI = {
   }) => api.post<WatchlistItem>('/api/research/watchlist/', data),
 
   updateWatchlistItem: (id: number, data: Partial<WatchlistItem>) =>
-    api.put<WatchlistItem>(`/api/research/watchlist/${id}/`, data),
+    api.patch<WatchlistItem>(`/api/research/watchlist/${id}/`, data),
 
   removeFromWatchlist: (id: number) => api.delete(`/api/research/watchlist/${id}/`),
 };
