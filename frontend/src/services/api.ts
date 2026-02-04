@@ -188,19 +188,19 @@ export const reportsAPI = {
 
 // ===================== Watchlist API =====================
 export const watchlistAPI = {
-  getWatchlist: () => api.get<WatchlistItem[]>('/api/watchlist'),
+  getWatchlist: () => api.get<WatchlistItem[]>('/api/research/watchlist/'),
 
   addToWatchlist: (data: {
     company_name: string;
     alert_on_news?: boolean;
     alert_on_competitor_change?: boolean;
     notes?: string;
-  }) => api.post<WatchlistItem>('/api/watchlist', data),
+  }) => api.post<WatchlistItem>('/api/research/watchlist/', data),
 
   updateWatchlistItem: (id: number, data: Partial<WatchlistItem>) =>
-    api.put<WatchlistItem>(`/api/watchlist/${id}`, data),
+    api.put<WatchlistItem>(`/api/research/watchlist/${id}/`, data),
 
-  removeFromWatchlist: (id: number) => api.delete(`/api/watchlist/${id}`),
+  removeFromWatchlist: (id: number) => api.delete(`/api/research/watchlist/${id}/`),
 };
 
 // ===================== Notifications API =====================
