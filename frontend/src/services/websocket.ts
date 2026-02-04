@@ -44,7 +44,13 @@ export function connectToResearch(
         onProgress(data);
 
         // If task is completed or failed, don't reconnect
-        if (data.stage === 'completed' || data.stage === 'failed') {
+        const stageName = data.stage || data.stage_name;
+        const isDone =
+          stageName === 'completed' ||
+          stageName === 'failed' ||
+          (stageName === 'pipeline' && (data.status === 'completed' || data.status === 'failed')) ||
+          (data.status === 'completed' && data.type === 'initial_state');
+        if (isDone) {
           isDisconnected = true;
         }
       } catch (err) {
