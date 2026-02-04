@@ -49,6 +49,7 @@ class ResearchTaskViewSet(viewsets.ReadOnlyModelViewSet):
     """List and retrieve research tasks, plus start new research."""
     permission_classes = [IsAuthenticated]
     lookup_field = 'task_id'
+    pagination_class = None
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -131,6 +132,7 @@ class WatchlistViewSet(viewsets.ModelViewSet):
     """CRUD operations for user's watchlist."""
     permission_classes = [IsAuthenticated]
     serializer_class = WatchlistItemSerializer
+    pagination_class = None
 
     def get_queryset(self):
         return WatchlistItem.objects.filter(

@@ -73,7 +73,7 @@ def run_research_task(self, task_id):
 
     try:
         # Step 1: Call A2A orchestrator to start research
-        _update_task_status(task, 'validating', 5)
+        _update_task_status(task, 'validation', 5)
 
         with httpx.Client(timeout=300.0) as client:
             # Initiate research with the A2A orchestrator
@@ -142,7 +142,7 @@ def run_research_task(self, task_id):
                     continue
 
             # Step 3: Fetch final results
-            _update_task_status(task, 'generating_report', 95)
+            _update_task_status(task, 'report_generation', 95)
 
             result_response = client.get(
                 f"{A2A_ORCHESTRATOR_URL}/a2a/research/{orchestrator_task_id}/result",
@@ -153,24 +153,98 @@ def run_research_task(self, task_id):
 
             result_data = result_response.json()
 
-        # Step 4: Store results
-        report_md = result_data.get('report_markdown', '')
+        # Step 4: Store results -- extract from nested orchestrator response
+        pipeline = result_data.get('pipeline_results', {})
+        final_report = result_data.get('final_report') or pipeline.get('report_generation', {})
+
+        # Extract from individual pipeline stage results
+        validation = pipeline.get('validation', {})
+        sector_info = pipeline.get('sector_identification', {})
+        competitor_info = pipeline.get('competitor_discovery', {})
+        financial = pipeline.get('financial_research', {})
+        deep_research = pipeline.get('deep_research', {})
+        sentiment_raw = pipeline.get('sentiment_analysis', {})
+        trends_raw = pipeline.get('trend_analysis', {})
+
+        report_md = final_report.get('report_markdown', '')
         report_html = markdown.markdown(report_md, extensions=['tables', 'fenced_code']) if report_md else ''
+
+        company_sector = sector_info.get('sector', '')
+        executive_summary = final_report.get('executive_summary', '')
+        swot_raw = final_report.get('swot', {})
+        recommendations_raw = final_report.get('recommendations', [])
+
+        # Normalize competitors to list of {name, description, sector}
+        raw_competitors = competitor_info.get('competitors', [])
+        competitors = []
+        for c in raw_competitors:
+            if isinstance(c, dict):
+                competitors.append({
+                    'name': c.get('name', ''),
+                    'description': c.get('description', ''),
+                    'sector': c.get('sector', company_sector),
+                })
+
+        # Normalize sentiment_data to match frontend SentimentData interface
+        company_sentiment = sentiment_raw.get('company_sentiment', {})
+        sentiment_data = {
+            'company_sentiment': {
+                'score': company_sentiment.get('overall_score', 0),
+                'label': company_sentiment.get('label', 'neutral'),
+                'summary': sentiment_raw.get('sentiment_comparison', ''),
+            },
+            'competitor_sentiments': {},
+            'market_mood': sentiment_raw.get('market_mood', 'neutral'),
+        }
+        for comp_name, comp_sent in sentiment_raw.get('competitor_sentiments', {}).items():
+            if isinstance(comp_sent, dict):
+                sentiment_data['competitor_sentiments'][comp_name] = {
+                    'score': comp_sent.get('overall_score', 0),
+                    'label': comp_sent.get('label', 'neutral'),
+                }
+
+        # Normalize trend_data to match frontend TrendData interface
+        emerging = trends_raw.get('emerging_trends', [])
+        declining = trends_raw.get('declining_trends', [])
+        opportunities = trends_raw.get('opportunities', [])
+        trend_data = {
+            'emerging_trends': [t.get('trend', t) if isinstance(t, dict) else str(t) for t in emerging],
+            'declining_trends': [t.get('trend', t) if isinstance(t, dict) else str(t) for t in declining],
+            'opportunities': [o.get('opportunity', o) if isinstance(o, dict) else str(o) for o in opportunities],
+        }
+
+        # Normalize SWOT to match frontend SwotAnalysis interface
+        swot_analysis = {
+            'strengths': swot_raw.get('strengths', []),
+            'weaknesses': swot_raw.get('weaknesses', []),
+            'opportunities': swot_raw.get('opportunities', []),
+            'threats': swot_raw.get('threats', []),
+        }
+
+        # Normalize recommendations to list of strings
+        recommendations = []
+        for rec in recommendations_raw:
+            if isinstance(rec, dict):
+                title = rec.get('title', '')
+                desc = rec.get('description', '')
+                recommendations.append(f"{title}: {desc}" if title and desc else title or desc)
+            elif isinstance(rec, str):
+                recommendations.append(rec)
 
         research_result = ResearchResult.objects.create(
             task=task,
-            company_validated=result_data.get('company_validated', False),
-            company_sector=result_data.get('company_sector', ''),
-            competitors=result_data.get('competitors', []),
-            financial_data=result_data.get('financial_data', {}),
-            market_research=result_data.get('market_research', {}),
-            sentiment_data=result_data.get('sentiment_data', {}),
-            trend_data=result_data.get('trend_data', {}),
+            company_validated=validation.get('valid', False),
+            company_sector=company_sector,
+            competitors=competitors,
+            financial_data=financial,
+            market_research=deep_research,
+            sentiment_data=sentiment_data,
+            trend_data=trend_data,
             report_markdown=report_md,
             report_html=report_html,
-            executive_summary=result_data.get('executive_summary', ''),
-            swot_analysis=result_data.get('swot_analysis', {}),
-            recommendations=result_data.get('recommendations', []),
+            executive_summary=executive_summary,
+            swot_analysis=swot_analysis,
+            recommendations=recommendations,
             raw_agent_data=result_data,
         )
 
@@ -178,14 +252,14 @@ def run_research_task(self, task_id):
         company_profile, _ = CompanyProfile.objects.update_or_create(
             name=task.company_name,
             defaults={
-                'sector': result_data.get('company_sector', ''),
-                'description': result_data.get('executive_summary', '')[:500],
+                'sector': company_sector,
+                'description': executive_summary[:500] if executive_summary else '',
                 'website': result_data.get('website', ''),
                 'logo_url': result_data.get('logo_url', ''),
                 'last_researched': timezone.now(),
                 'cached_data': {
-                    'sector': result_data.get('company_sector', ''),
-                    'competitors': result_data.get('competitors', [])[:5],
+                    'sector': company_sector,
+                    'competitors': competitors[:5],
                 },
             },
         )

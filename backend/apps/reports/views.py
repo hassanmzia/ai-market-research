@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 class SavedReportViewSet(viewsets.ModelViewSet):
     """CRUD operations for saved reports, plus export action."""
     permission_classes = [IsAuthenticated]
+    pagination_class = None
 
     def get_serializer_class(self):
         if self.action in ('create',):
@@ -35,8 +36,61 @@ class SavedReportViewSet(viewsets.ModelViewSet):
             user=self.request.user
         ).select_related('task')
 
+    def create(self, request, *args, **kwargs):
+        """Create a saved report, accepting task_id (UUID) instead of task (FK int)."""
+        task_id = request.data.get('task_id')
+        if task_id and 'task' not in request.data:
+            from apps.research.models import ResearchTask
+            try:
+                task_obj = ResearchTask.objects.select_related('result').get(
+                    task_id=task_id,
+                    project__user=request.user,
+                )
+            except ResearchTask.DoesNotExist:
+                return Response(
+                    {'detail': 'Research task not found.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            # Build report_data from the research result
+            report_data = {}
+            if hasattr(task_obj, 'result') and task_obj.result:
+                report_data = {
+                    'report_markdown': task_obj.result.report_markdown or '',
+                    'executive_summary': task_obj.result.executive_summary or '',
+                    'swot_analysis': task_obj.result.swot_analysis or {},
+                    'recommendations': task_obj.result.recommendations or [],
+                }
+            data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+            data['task'] = task_obj.pk
+            data['report_data'] = report_data
+            data.setdefault('format', 'markdown')
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user=request.user)
+            headers = self.get_success_headers(serializer.data)
+            return Response(
+                SavedReportSerializer(serializer.instance, context={'request': request}).data,
+                status=status.HTTP_201_CREATED,
+                headers=headers,
+            )
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'], url_path='share')
+    def share(self, request, pk=None):
+        """Make a report public and return the share token/URL."""
+        report = self.get_object()
+        report.is_public = True
+        report.save(update_fields=['is_public'])
+        share_url = request.build_absolute_uri(
+            f'/api/reports/shared/{report.share_token}/'
+        )
+        return Response({
+            'share_token': str(report.share_token),
+            'share_url': share_url,
+        })
 
     @action(detail=True, methods=['get'], url_path='export/(?P<export_format>[a-z]+)')
     def export(self, request, pk=None, export_format=None):
