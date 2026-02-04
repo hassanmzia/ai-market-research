@@ -5,6 +5,7 @@ for revenue, market cap, growth metrics, and key financial indicators.
 
 import logging
 import re
+import time
 from typing import Any, Dict, List, Optional
 
 from duckduckgo_search import DDGS
@@ -64,12 +65,19 @@ METRIC_KEYWORDS: Dict[str, List[str]] = {
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _search(query: str, max_results: int = 5) -> list[dict]:
-    try:
-        return DDGS().text(query, max_results=max_results)
-    except Exception as exc:
-        logger.warning("Search failed for query '%s': %s", query, exc)
-        return []
+def _search(query: str, max_results: int = 5, retries: int = 3) -> list[dict]:
+    for attempt in range(retries):
+        try:
+            results = DDGS().text(query, max_results=max_results)
+            return results
+        except Exception as exc:
+            logger.warning(
+                "Search attempt %d/%d failed for '%s': %s",
+                attempt + 1, retries, query, exc,
+            )
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)  # 1s, 2s backoff
+    return []
 
 
 def _extract_money(text: str) -> List[Dict[str, str]]:
@@ -125,7 +133,9 @@ async def run(company_name: str, sector: str = "") -> Dict[str, Any]:
         queries.append(f"{company_name} {sector} financial performance")
 
     all_results: List[dict] = []
-    for query in queries:
+    for qi, query in enumerate(queries):
+        if qi > 0:
+            time.sleep(1)  # Space out searches to avoid rate limits
         results = _search(query)
         all_results.extend(results)
 

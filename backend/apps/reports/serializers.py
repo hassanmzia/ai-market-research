@@ -31,11 +31,18 @@ class SavedReportCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = SavedReport
         fields = ['task', 'title', 'description', 'report_data', 'format', 'is_public']
+        extra_kwargs = {
+            'description': {'required': False, 'default': ''},
+            'report_data': {'required': False, 'default': dict},
+            'format': {'required': False, 'default': 'markdown'},
+            'is_public': {'required': False, 'default': False},
+        }
 
     def validate_task(self, value):
-        user = self.context['request'].user
-        if value.project.user != user:
-            raise serializers.ValidationError("Task does not belong to you.")
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            if value.project.user != request.user:
+                raise serializers.ValidationError("Task does not belong to you.")
         return value
 
 

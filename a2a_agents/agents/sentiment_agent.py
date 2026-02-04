@@ -62,6 +62,18 @@ class SentimentAgent(BaseAgent):
             result = await self._analyze_sentiment(cname)
             competitor_sentiments_raw.append(result)
 
+        # Gather supplemental context from earlier pipeline stages
+        research_data = context.get("deep_research", {})
+        financial_data = context.get("financial_research", {})
+        sector_data = context.get("sector_identification", {})
+        sector = sector_data.get("sector", "")
+        supplemental = (
+            f"Sector: {sector}\n"
+            f"Company research: {json.dumps(research_data.get('company_data', {}), default=str)[:2000]}\n"
+            f"Market data: {json.dumps(research_data.get('market_data', {}), default=str)[:1000]}\n"
+            f"Financial comparison: {financial_data.get('financial_comparison', '')[:1000]}\n"
+        )
+
         # LLM deep analysis
         llm_result = await self.call_llm_json(
             [
@@ -69,8 +81,11 @@ class SentimentAgent(BaseAgent):
                     "role": "system",
                     "content": (
                         "You are a market sentiment analyst. Given raw sentiment data "
-                        "for a company and its competitors, produce structured sentiment "
-                        "analysis. Respond in JSON with keys: "
+                        "for a company and its competitors, plus supplemental research "
+                        "context, produce structured sentiment analysis. "
+                        "Use your knowledge of these companies to provide realistic "
+                        "sentiment scores even if the raw search data is limited. "
+                        "Respond in JSON with keys: "
                         '"company_sentiment" (object with "overall_score" float -1 to 1, '
                         '"label" str positive/neutral/negative, "key_positive_factors" '
                         "list[str], "
@@ -87,9 +102,14 @@ class SentimentAgent(BaseAgent):
                     "role": "user",
                     "content": (
                         f"Target company: {canonical_name}\n"
+                        f"Sector: {sector}\n"
+                        f"Competitors: {', '.join(competitor_names)}\n\n"
                         f"Company sentiment data: {json.dumps(company_sentiment_raw)}\n\n"
                         f"Competitor sentiment data: {json.dumps(competitor_sentiments_raw)}\n\n"
-                        "Provide comprehensive sentiment analysis."
+                        f"Supplemental research context:\n{supplemental}\n\n"
+                        "Provide comprehensive sentiment analysis. If raw search data "
+                        "is sparse, use the supplemental context and your knowledge "
+                        "of these companies to provide informed estimates."
                     ),
                 },
             ]

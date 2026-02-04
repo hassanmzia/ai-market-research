@@ -103,6 +103,8 @@ class SavedReportViewSet(viewsets.ModelViewSet):
             return self._export_pdf(report)
         elif export_format == 'html':
             return self._export_html(report)
+        elif export_format in ('markdown', 'md'):
+            return self._export_markdown(report)
         else:
             return Response(
                 {'error': f'Unsupported export format: {export_format}'},
@@ -214,6 +216,24 @@ class SavedReportViewSet(viewsets.ModelViewSet):
 
         response = HttpResponse(html_content, content_type='text/html')
         response['Content-Disposition'] = f'attachment; filename="{report.title}.html"'
+        return response
+
+    def _export_markdown(self, report):
+        """Export report as Markdown."""
+        report_data = report.report_data or {}
+        md_content = report_data.get('report_markdown', '')
+
+        if not md_content and hasattr(report.task, 'result') and report.task.result:
+            md_content = report.task.result.report_markdown or ''
+
+        if not md_content:
+            md_content = f"# {report.title}\n\n{report.description or 'No content available.'}"
+
+        report.download_count += 1
+        report.save(update_fields=['download_count'])
+
+        response = HttpResponse(md_content, content_type='text/markdown')
+        response['Content-Disposition'] = f'attachment; filename="{report.title}.md"'
         return response
 
 

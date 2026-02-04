@@ -167,12 +167,20 @@ SECTOR_PATTERNS: Dict[str, List[str]] = {
 # Helper
 # ---------------------------------------------------------------------------
 
-def _search(query: str, max_results: int = 5) -> list[dict]:
-    try:
-        return DDGS().text(query, max_results=max_results)
-    except Exception as exc:
-        logger.warning("Search failed for query '%s': %s", query, exc)
-        return []
+def _search(query: str, max_results: int = 5, retries: int = 3) -> list[dict]:
+    import time
+    for attempt in range(retries):
+        try:
+            results = DDGS().text(query, max_results=max_results)
+            return results
+        except Exception as exc:
+            logger.warning(
+                "Search attempt %d/%d failed for '%s': %s",
+                attempt + 1, retries, query, exc,
+            )
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)
+    return []
 
 
 def _match_sectors(text: str) -> List[str]:

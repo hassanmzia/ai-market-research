@@ -186,10 +186,19 @@ def run_research_task(self, task_id):
                 })
 
         # Normalize sentiment_data to match frontend SentimentData interface
+        # Agent returns overall_score in [-1, 1]; frontend expects score in [0, 1]
+        def _normalize_sentiment_score(raw_score):
+            """Convert sentiment score from [-1,1] to [0,1] range."""
+            try:
+                s = float(raw_score)
+            except (TypeError, ValueError):
+                return 0.5
+            return round(max(0.0, min(1.0, (s + 1.0) / 2.0)), 2)
+
         company_sentiment = sentiment_raw.get('company_sentiment', {})
         sentiment_data = {
             'company_sentiment': {
-                'score': company_sentiment.get('overall_score', 0),
+                'score': _normalize_sentiment_score(company_sentiment.get('overall_score', 0)),
                 'label': company_sentiment.get('label', 'neutral'),
                 'summary': sentiment_raw.get('sentiment_comparison', ''),
             },
@@ -199,7 +208,7 @@ def run_research_task(self, task_id):
         for comp_name, comp_sent in sentiment_raw.get('competitor_sentiments', {}).items():
             if isinstance(comp_sent, dict):
                 sentiment_data['competitor_sentiments'][comp_name] = {
-                    'score': comp_sent.get('overall_score', 0),
+                    'score': _normalize_sentiment_score(comp_sent.get('overall_score', 0)),
                     'label': comp_sent.get('label', 'neutral'),
                 }
 
