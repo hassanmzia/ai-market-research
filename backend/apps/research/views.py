@@ -143,10 +143,11 @@ class WatchlistViewSet(viewsets.ModelViewSet):
         """Create a watchlist item, accepting company_name instead of company ID."""
         company_name = request.data.get('company_name', '').strip()
         if company_name and 'company' not in request.data:
-            company, _ = CompanyProfile.objects.get_or_create(
+            company = CompanyProfile.objects.filter(
                 name__iexact=company_name,
-                defaults={'name': company_name},
-            )
+            ).first()
+            if company is None:
+                company = CompanyProfile.objects.create(name=company_name)
             data = {
                 'company': company.id,
                 'alert_on_news': request.data.get('alert_on_news', True),
