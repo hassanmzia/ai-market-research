@@ -35,8 +35,8 @@ def dashboard_stats(request):
     failed_tasks = ResearchTask.objects.filter(project__user=user, status='failed').count()
     pending_tasks = ResearchTask.objects.filter(
         project__user=user,
-        status__in=['pending', 'validating', 'analyzing_sector', 'finding_competitors',
-                     'researching', 'analyzing_sentiment', 'analyzing_trends', 'generating_report']
+    ).exclude(
+        status__in=['completed', 'failed']
     ).count()
     saved_reports = SavedReport.objects.filter(user=user).count()
     recent_tasks = ResearchTask.objects.filter(
