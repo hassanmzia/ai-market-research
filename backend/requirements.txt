@@ -16,7 +16,7 @@ httpx==0.27.0
 gunicorn==22.0.0
 whitenoise==6.7.0
 Pillow==10.4.0
-xhtml2pdf==0.2.16
+reportlab==4.2.5
 python-dotenv==1.0.1
 dj-database-url==2.2.0
 openai==1.101.0
