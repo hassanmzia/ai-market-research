@@ -124,8 +124,12 @@ export interface DashboardStats {
 
 export interface ResearchProgress {
   task_id: string;
-  stage: string;
+  stage?: string;
+  stage_name?: string;
+  status?: string;
   progress: number;
   message: string;
   agent_name?: string;
+  type?: string;
+  stages?: Array<{ name: string; status: string }>;
 }
