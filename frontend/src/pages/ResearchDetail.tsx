@@ -31,6 +31,7 @@ import toast from 'react-hot-toast';
 import type { ResearchTask, ResearchResult } from '../types';
 
 type TabKey = 'overview' | 'competitors' | 'analysis' | 'swot' | 'report';
+type ExportFormat = 'markdown' | 'pdf';
 
 const TABS: { key: TabKey; label: string; icon: React.ComponentType<{ size?: number | string }> }[] = [
   { key: 'overview', label: 'Overview', icon: FileText },
@@ -49,10 +50,20 @@ const ResearchDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [savingReport, setSavingReport] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const isInProgress =
     task &&
     !['completed', 'failed', 'pending'].includes(task.status);
+
+  // Close export dropdown on outside click
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handleClick = () => setShowExportMenu(false);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [showExportMenu]);
 
   useEffect(() => {
     if (!id) return;
@@ -131,17 +142,50 @@ const ResearchDetail: React.FC = () => {
     }
   };
 
-  const handleDownload = () => {
-    if (!result?.report_markdown || !task) return;
-    const blob = new Blob([result.report_markdown], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${task.company_name.replace(/\s+/g, '_')}_research_report.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleExport = async (format: ExportFormat) => {
+    if (!task) return;
+    setShowExportMenu(false);
+
+    if (format === 'markdown') {
+      if (!result?.report_markdown) return;
+      const blob = new Blob([result.report_markdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${task.company_name.replace(/\s+/g, '_')}_research_report.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    // PDF: save report first to get an ID, then call export endpoint
+    setExporting(true);
+    try {
+      const saveRes = await reportsAPI.saveReport({
+        task_id: task.task_id,
+        title: `Market Research: ${task.company_name}`,
+        description: result?.executive_summary || '',
+        format: 'pdf',
+      });
+      const reportId = saveRes.data.id;
+      const exportRes = await reportsAPI.downloadReport(reportId, 'pdf');
+      const blob = new Blob([exportRes.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${task.company_name.replace(/\s+/g, '_')}_research_report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('PDF downloaded successfully!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to export PDF');
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) {
@@ -204,10 +248,73 @@ const ResearchDetail: React.FC = () => {
               <Save size={16} />
               {savingReport ? 'Saving...' : 'Save Report'}
             </button>
-            <button className="btn btn-outline" onClick={handleDownload}>
-              <Download size={16} />
-              Export
-            </button>
+            <div className="dropdown" style={{ position: 'relative', display: 'inline-block' }}>
+              <button
+                className="btn btn-outline"
+                onClick={(e) => { e.stopPropagation(); setShowExportMenu(!showExportMenu); }}
+                disabled={exporting}
+              >
+                <Download size={16} />
+                {exporting ? 'Exporting...' : 'Export'}
+              </button>
+              {showExportMenu && (
+                <div
+                  className="dropdown-menu"
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: 4,
+                    background: 'var(--bg-card, #fff)',
+                    border: '1px solid var(--border-color, #ddd)',
+                    borderRadius: 8,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 50,
+                    minWidth: 160,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <button
+                    className="dropdown-item"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      width: '100%',
+                      padding: '10px 16px',
+                      border: 'none',
+                      background: 'none',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      color: 'inherit',
+                    }}
+                    onClick={() => handleExport('markdown')}
+                  >
+                    <FileText size={14} />
+                    Markdown (.md)
+                  </button>
+                  <button
+                    className="dropdown-item"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      width: '100%',
+                      padding: '10px 16px',
+                      border: 'none',
+                      background: 'none',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      color: 'inherit',
+                    }}
+                    onClick={() => handleExport('pdf')}
+                  >
+                    <Download size={14} />
+                    PDF (.pdf)
+                  </button>
+                </div>
+              )}
+            </div>
             <button className="btn btn-outline" onClick={handleAddToWatchlist}>
               <Eye size={16} />
               Watchlist
