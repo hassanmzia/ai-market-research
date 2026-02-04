@@ -1,0 +1,296 @@
+<mxfile host="app.diagrams.net" modified="2026-02-04T04:00:00.000Z" agent="Claude" version="24.0.0">
+  <diagram id="architecture" name="Technical Architecture">
+    <mxGraphModel dx="2400" dy="1800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="AI Market Research Assistant — Technical Architecture" style="text;html=1;fontSize=24;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#1a1a2e;" vertex="1" parent="1">
+          <mxGeometry x="400" y="20" width="800" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================ -->
+        <!-- CLIENT LAYER -->
+        <!-- ================================================================ -->
+        <mxCell id="client_group" value="Client Layer" style="swimlane;startSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=14;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="360" height="200" as="geometry" />
+        </mxCell>
+
+        <mxCell id="browser" value="&#xa;Web Browser&#xa;(React 18 + TypeScript)&#xa;&#xa;• Zustand State Mgmt&#xa;• React Router v6&#xa;• Recharts Visualizations&#xa;• Axios HTTP Client" style="shape=mxgraph.basic.rect;fillColor=#FFFFFF;strokeColor=#6c8ebf;rounded=1;arcSize=12;whiteSpace=wrap;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="client_group">
+          <mxGeometry x="20" y="40" width="200" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="websocket_client" value="WebSocket&#xa;Client&#xa;(Real-time)" style="shape=mxgraph.basic.rect;fillColor=#fff2cc;strokeColor=#d6b656;rounded=1;arcSize=12;whiteSpace=wrap;fontSize=11;align=center;" vertex="1" parent="client_group">
+          <mxGeometry x="240" y="40" width="100" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="jwt_store" value="JWT Tokens&#xa;(localStorage)" style="shape=mxgraph.basic.rect;fillColor=#fff2cc;strokeColor=#d6b656;rounded=1;arcSize=12;whiteSpace=wrap;fontSize=11;align=center;" vertex="1" parent="client_group">
+          <mxGeometry x="240" y="120" width="100" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================ -->
+        <!-- GATEWAY LAYER -->
+        <!-- ================================================================ -->
+        <mxCell id="gateway_group" value="API Gateway Layer" style="swimlane;startSize=30;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=14;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="310" width="360" height="200" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gateway" value="&#xa;Node.js Gateway :4063&#xa;(Express.js)&#xa;&#xa;• HTTP Reverse Proxy&#xa;• WebSocket Relay&#xa;• JWT Verification&#xa;• Rate Limiting (Redis)&#xa;• CORS / Helmet / gzip" style="shape=mxgraph.basic.rect;fillColor=#FFFFFF;strokeColor=#82b366;rounded=1;arcSize=12;whiteSpace=wrap;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="gateway_group">
+          <mxGeometry x="20" y="40" width="320" height="145" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================ -->
+        <!-- BACKEND SERVICES LAYER -->
+        <!-- ================================================================ -->
+        <mxCell id="backend_group" value="Backend Services Layer" style="swimlane;startSize=30;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=14;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="540" width="760" height="280" as="geometry" />
+        </mxCell>
+
+        <mxCell id="django" value="&#xa;Django API :8063&#xa;(DRF + Channels)&#xa;&#xa;• REST API Endpoints&#xa;• JWT Authentication&#xa;• User Management&#xa;• Research Task CRUD&#xa;• Report Save/Export&#xa;• Watchlist Mgmt&#xa;• Notifications" style="shape=mxgraph.basic.rect;fillColor=#FFFFFF;strokeColor=#9673a6;rounded=1;arcSize=12;whiteSpace=wrap;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="backend_group">
+          <mxGeometry x="20" y="40" width="200" height="220" as="geometry" />
+        </mxCell>
+
+        <mxCell id="celery_worker" value="&#xa;Celery Worker&#xa;&#xa;• run_research_task&#xa;  (polls A2A orchestrator)&#xa;• cleanup_old_tasks&#xa;• refresh_watchlist" style="shape=mxgraph.basic.rect;fillColor=#FFFFFF;strokeColor=#9673a6;rounded=1;arcSize=12;whiteSpace=wrap;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="backend_group">
+          <mxGeometry x="240" y="40" width="200" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="celery_beat" value="&#xa;Celery Beat&#xa;&#xa;• Scheduled Jobs&#xa;• Watchlist refresh (6h)&#xa;• Task cleanup (daily)" style="shape=mxgraph.basic.rect;fillColor=#FFFFFF;strokeColor=#9673a6;rounded=1;arcSize=12;whiteSpace=wrap;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="backend_group">
+          <mxGeometry x="240" y="190" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="channels" value="&#xa;Django Channels&#xa;(WebSocket Layer)&#xa;&#xa;• Research progress&#xa;  group broadcasts&#xa;• Redis channel layer" style="shape=mxgraph.basic.rect;fillColor=#fff2cc;strokeColor=#d6b656;rounded=1;arcSize=12;whiteSpace=wrap;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="backend_group">
+          <mxGeometry x="460" y="40" width="180" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================ -->
+        <!-- AI ORCHESTRATION LAYER -->
+        <!-- ================================================================ -->
+        <mxCell id="ai_group" value="AI Orchestration Layer" style="swimlane;startSize=30;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=14;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="460" y="80" width="570" height="430" as="geometry" />
+        </mxCell>
+
+        <mxCell id="orchestrator" value="&#xa;A2A Orchestrator :7063&#xa;(FastAPI)&#xa;&#xa;• 8-Stage Sequential Pipeline&#xa;• Redis Task State Store&#xa;• WebSocket Progress Stream&#xa;• Agent-to-Agent Protocol" style="shape=mxgraph.basic.rect;fillColor=#FFFFFF;strokeColor=#d6b656;rounded=1;arcSize=12;whiteSpace=wrap;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="ai_group">
+          <mxGeometry x="20" y="40" width="240" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Pipeline Stages -->
+        <mxCell id="pipeline_label" value="Research Pipeline (Sequential)" style="text;html=1;fontSize=12;fontStyle=5;align=left;fillColor=none;strokeColor=none;fontColor=#b85c00;" vertex="1" parent="ai_group">
+          <mxGeometry x="20" y="190" width="250" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="stage1" value="1. Validation" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;whiteSpace=wrap;" vertex="1" parent="ai_group">
+          <mxGeometry x="20" y="215" width="120" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stage2" value="2. Sector ID" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;whiteSpace=wrap;" vertex="1" parent="ai_group">
+          <mxGeometry x="150" y="215" width="120" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stage3" value="3. Competitors" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;whiteSpace=wrap;" vertex="1" parent="ai_group">
+          <mxGeometry x="280" y="215" width="120" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stage4" value="4. Financial" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;whiteSpace=wrap;" vertex="1" parent="ai_group">
+          <mxGeometry x="410" y="215" width="120" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stage5" value="5. Deep Research" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;whiteSpace=wrap;" vertex="1" parent="ai_group">
+          <mxGeometry x="20" y="253" width="120" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stage6" value="6. Sentiment" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;whiteSpace=wrap;" vertex="1" parent="ai_group">
+          <mxGeometry x="150" y="253" width="120" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stage7" value="7. Trends" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;whiteSpace=wrap;" vertex="1" parent="ai_group">
+          <mxGeometry x="280" y="253" width="120" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stage8" value="8. Report Gen" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;whiteSpace=wrap;" vertex="1" parent="ai_group">
+          <mxGeometry x="410" y="253" width="120" height="28" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows between stages -->
+        <mxCell id="s1_s2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#b85450;fontSize=8;" edge="1" parent="ai_group" source="stage1" target="stage2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s2_s3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#b85450;fontSize=8;" edge="1" parent="ai_group" source="stage2" target="stage3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_s4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#b85450;fontSize=8;" edge="1" parent="ai_group" source="stage3" target="stage4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s5_s6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#b85450;fontSize=8;" edge="1" parent="ai_group" source="stage5" target="stage6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s6_s7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#b85450;fontSize=8;" edge="1" parent="ai_group" source="stage6" target="stage7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s7_s8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#b85450;fontSize=8;" edge="1" parent="ai_group" source="stage7" target="stage8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- MCP Server -->
+        <mxCell id="mcp" value="&#xa;MCP Server :9063&#xa;(FastAPI)&#xa;&#xa;9 Tools:&#xa;• validate_company&#xa;• identify_sector&#xa;• identify_competitors&#xa;• browse_page&#xa;• financial_data&#xa;• sentiment_analysis&#xa;• trend_analysis&#xa;• swot_analysis&#xa;• generate_report" style="shape=mxgraph.basic.rect;fillColor=#FFFFFF;strokeColor=#d6b656;rounded=1;arcSize=12;whiteSpace=wrap;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="ai_group">
+          <mxGeometry x="300" y="295" width="230" height="125" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================ -->
+        <!-- DATA LAYER -->
+        <!-- ================================================================ -->
+        <mxCell id="data_group" value="Data &amp; Messaging Layer" style="swimlane;startSize=30;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=14;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="840" y="540" width="420" height="280" as="geometry" />
+        </mxCell>
+
+        <mxCell id="postgres" value="&#xa;PostgreSQL 16 :5432&#xa;&#xa;Tables:&#xa;• accounts_user&#xa;• research_project&#xa;• research_task&#xa;• research_result&#xa;• research_companyprofile&#xa;• research_watchlistitem&#xa;• reports_savedreport&#xa;• notifications_notification" style="shape=cylinder3;whiteSpace=wrap;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="data_group">
+          <mxGeometry x="20" y="40" width="200" height="220" as="geometry" />
+        </mxCell>
+
+        <mxCell id="redis" value="&#xa;Redis :6379&#xa;&#xa;DB 0: Django Cache&#xa;DB 1: Celery Broker&#xa;DB 2: MCP Tool Cache&#xa;DB 3: A2A Task State&#xa;DB 4: Gateway Rate Limits&#xa;&#xa;+ Channels Layer&#xa;+ Pub/Sub Progress" style="shape=cylinder3;whiteSpace=wrap;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="data_group">
+          <mxGeometry x="240" y="40" width="165" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================ -->
+        <!-- EXTERNAL SERVICES -->
+        <!-- ================================================================ -->
+        <mxCell id="external_group" value="External Services" style="swimlane;startSize=30;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=14;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="80" width="260" height="200" as="geometry" />
+        </mxCell>
+
+        <mxCell id="openai" value="OpenAI API&#xa;(GPT-4o-mini)" style="shape=cloud;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#666666;fontSize=11;" vertex="1" parent="external_group">
+          <mxGeometry x="20" y="40" width="130" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ddg" value="DuckDuckGo&#xa;Search" style="shape=cloud;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#666666;fontSize=11;" vertex="1" parent="external_group">
+          <mxGeometry x="20" y="120" width="130" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="websites" value="Target&#xa;Websites" style="shape=cloud;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#666666;fontSize=11;" vertex="1" parent="external_group">
+          <mxGeometry x="150" y="80" width="100" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================ -->
+        <!-- CONNECTIONS (Main data flows) -->
+        <!-- ================================================================ -->
+
+        <!-- Browser → Gateway (HTTP) -->
+        <mxCell id="conn1" value="HTTP/REST&#xa;+ JWT" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;strokeWidth=2;fontSize=9;fontColor=#6c8ebf;" edge="1" parent="1" source="browser" target="gateway">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Browser → Gateway (WebSocket) -->
+        <mxCell id="conn2" value="WebSocket" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;strokeWidth=2;dashed=1;fontSize=9;fontColor=#b85c00;" edge="1" parent="1" source="websocket_client" target="gateway">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="690" y="290" />
+              <mxPoint x="690" y="290" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Gateway → Django -->
+        <mxCell id="conn3" value="/api/* proxy" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=2;fontSize=9;fontColor=#9673a6;" edge="1" parent="1" source="gateway" target="django">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Gateway → A2A Orchestrator -->
+        <mxCell id="conn4" value="/api/agents/*" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;strokeWidth=2;fontSize=9;fontColor=#b85c00;" edge="1" parent="1" source="gateway" target="orchestrator">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="410" />
+              <mxPoint x="420" y="200" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Django → PostgreSQL -->
+        <mxCell id="conn5" value="SQL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;strokeWidth=2;fontSize=9;fontColor=#b85450;" edge="1" parent="1" source="django" target="postgres">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="780" y="700" />
+              <mxPoint x="840" y="700" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Django → Redis -->
+        <mxCell id="conn6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;strokeWidth=1;dashed=1;" edge="1" parent="1" source="django" target="redis">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="790" y="660" />
+              <mxPoint x="1100" y="660" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Celery → Django (task dispatch) -->
+        <mxCell id="conn7" value="Task&#xa;Queue" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=1;fontSize=9;fontColor=#9673a6;" edge="1" parent="1" source="django" target="celery_worker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Celery Worker → A2A (poll status) -->
+        <mxCell id="conn8" value="Poll&#xa;Status" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;strokeWidth=2;fontSize=9;fontColor=#b85c00;" edge="1" parent="1" source="celery_worker" target="orchestrator">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="450" y="650" />
+              <mxPoint x="450" y="230" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Orchestrator → MCP -->
+        <mxCell id="conn9" value="/mcp/tools/call" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;strokeWidth=2;fontSize=9;fontColor=#b85c00;" edge="1" parent="1" source="orchestrator" target="mcp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Orchestrator → Redis -->
+        <mxCell id="conn10" value="State +&#xa;Pub/Sub" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;strokeWidth=1;dashed=1;fontSize=9;fontColor=#b85450;" edge="1" parent="1" source="orchestrator" target="redis">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1100" y="200" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- MCP → External (OpenAI) -->
+        <mxCell id="conn11" value="LLM&#xa;Calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;strokeWidth=2;fontSize=9;fontColor=#666666;" edge="1" parent="1" source="orchestrator" target="openai">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1040" y="160" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- MCP → DuckDuckGo -->
+        <mxCell id="conn12" value="Search" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;strokeWidth=1;dashed=1;fontSize=9;fontColor=#666666;" edge="1" parent="1" source="mcp" target="ddg">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1060" y="440" />
+              <mxPoint x="1060" y="240" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- MCP → Websites -->
+        <mxCell id="conn13" value="Scrape" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;strokeWidth=1;dashed=1;fontSize=9;fontColor=#666666;" edge="1" parent="1" source="mcp" target="websites">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1070" y="460" />
+              <mxPoint x="1070" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Celery Beat → Celery Worker -->
+        <mxCell id="conn14" value="Schedule" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=1;fontSize=9;fontColor=#9673a6;" edge="1" parent="1" source="celery_beat" target="celery_worker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Celery → Redis (broker) -->
+        <mxCell id="conn15" value="Broker" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;strokeWidth=1;dashed=1;fontSize=9;fontColor=#b85450;" edge="1" parent="1" source="celery_worker" target="redis">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="810" y="650" />
+              <mxPoint x="1100" y="650" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
