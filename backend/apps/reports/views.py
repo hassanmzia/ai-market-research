@@ -138,9 +138,9 @@ class SavedReportViewSet(viewsets.ModelViewSet):
         return response
 
     def _export_pdf(self, report):
-        """Export report as PDF using WeasyPrint."""
+        """Export report as PDF using xhtml2pdf."""
         try:
-            from weasyprint import HTML as WeasyHTML
+            from xhtml2pdf import pisa
 
             report_data = report.report_data or {}
             md_content = report_data.get('report_markdown', '')
@@ -157,22 +157,21 @@ class SavedReportViewSet(viewsets.ModelViewSet):
                 <meta charset="utf-8">
                 <title>{report.title}</title>
                 <style>
-                    body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                    body {{ font-family: Helvetica, Arial, sans-serif; margin: 40px; line-height: 1.6; font-size: 12px; }}
                     h1 {{ color: #1a1a2e; border-bottom: 2px solid #16213e; padding-bottom: 10px; }}
                     h2 {{ color: #16213e; margin-top: 30px; }}
                     h3 {{ color: #0f3460; }}
                     table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
                     th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
                     th {{ background-color: #16213e; color: white; }}
-                    tr:nth-child(even) {{ background-color: #f2f2f2; }}
                     .header {{ text-align: center; margin-bottom: 40px; }}
-                    .footer {{ text-align: center; margin-top: 40px; font-size: 12px; color: #666; }}
+                    .footer {{ text-align: center; margin-top: 40px; font-size: 10px; color: #666; }}
                 </style>
             </head>
             <body>
                 <div class="header">
                     <h1>{report.title}</h1>
-                    <p>{report.description}</p>
+                    <p>{report.description or ''}</p>
                 </div>
                 {html_content}
                 <div class="footer">
@@ -182,22 +181,30 @@ class SavedReportViewSet(viewsets.ModelViewSet):
             </html>
             """
 
-            pdf_bytes = WeasyHTML(string=full_html).write_pdf()
+            pdf_buffer = io.BytesIO()
+            pisa_status = pisa.CreatePDF(full_html, dest=pdf_buffer)
+
+            if pisa_status.err:
+                logger.error("xhtml2pdf returned errors during PDF generation")
+                return Response(
+                    {'error': 'PDF generation failed. Try Markdown or CSV export.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
 
             report.download_count += 1
             report.save(update_fields=['download_count'])
 
-            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="{report.title}.pdf"'
             return response
 
         except ImportError:
-            logger.warning("WeasyPrint not available, falling back to HTML export.")
+            logger.warning("xhtml2pdf not available, falling back to HTML export.")
             return self._export_html(report)
         except Exception as e:
             logger.error(f"PDF generation failed: {e}")
             return Response(
-                {'error': 'PDF generation failed. Try HTML or CSV export.'},
+                {'error': 'PDF generation failed. Try Markdown or CSV export.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
