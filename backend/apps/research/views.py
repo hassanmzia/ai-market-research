@@ -147,8 +147,17 @@ class WatchlistViewSet(viewsets.ModelViewSet):
                 name__iexact=company_name,
                 defaults={'name': company_name},
             )
-            request.data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
-            request.data['company'] = company.id
+            data = {
+                'company': company.id,
+                'alert_on_news': request.data.get('alert_on_news', True),
+                'alert_on_competitor_change': request.data.get('alert_on_competitor_change', False),
+                'notes': request.data.get('notes', ''),
+            }
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user=request.user)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
