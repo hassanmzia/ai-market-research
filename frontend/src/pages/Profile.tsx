@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Building, Lock, Bell, Key, Loader, Save, Check } from 'lucide-react';
+import { User, Building, Lock, Bell, Loader, Save, Check } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { authAPI } from '../services/api';
 import toast from 'react-hot-toast';
@@ -370,37 +370,7 @@ const Profile: React.FC = () => {
           </div>
         </div>
 
-        {/* API Key */}
-        <div className="card">
-          <div className="card-header">
-            <h3>
-              <Key size={20} /> API Access
-            </h3>
-          </div>
-          <div className="card-body">
-            <div className="api-key-section">
-              <p className="text-muted">
-                Use your API key to access the Market Research API programmatically.
-              </p>
-              <div className="api-key-display">
-                <code className="api-key-value">
-                  {user?.id ? `mrk_${btoa(String(user.id)).replace(/=/g, '')}...` : 'N/A'}
-                </code>
-                <button
-                  className="btn btn-sm btn-outline"
-                  onClick={() => {
-                    toast.success('API key copied to clipboard');
-                  }}
-                >
-                  Copy
-                </button>
-              </div>
-              <span className="form-help">
-                Keep your API key secret. Do not share it publicly.
-              </span>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
   );

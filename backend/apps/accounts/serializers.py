@@ -80,12 +80,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'username', 'first_name', 'last_name',
-            'company', 'role', 'api_key', 'max_daily_research',
+            'company', 'role', 'max_daily_research',
             'research_count_today', 'avatar', 'preferences',
             'created_at', 'updated_at',
         ]
         read_only_fields = [
-            'id', 'email', 'username', 'api_key', 'role',
+            'id', 'email', 'username', 'role',
             'max_daily_research', 'research_count_today',
             'created_at', 'updated_at',
         ]
