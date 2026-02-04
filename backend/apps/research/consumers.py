@@ -57,10 +57,25 @@ class ResearchProgressConsumer(AsyncWebsocketConsumer):
 
     async def research_progress(self, event):
         """Handle research progress updates from the channel layer."""
+        status_value = event.get('status', '')
+        error_message = event.get('error_message', '')
+        company_name = event.get('company_name', '')
+
+        # Build a human-readable message for the frontend
+        if error_message:
+            message = error_message
+        elif status_value == 'completed':
+            message = f'Research for {company_name} completed successfully.'
+        elif status_value == 'failed':
+            message = f'Research for {company_name} failed.'
+        else:
+            message = f'Processing: {status_value}'
+
         await self.send(text_data=json.dumps({
             'type': 'research_progress',
-            'status': event.get('status', ''),
+            'stage': status_value,
             'progress': event.get('progress', 0),
-            'company_name': event.get('company_name', ''),
-            'error_message': event.get('error_message', ''),
+            'message': message,
+            'company_name': company_name,
+            'error_message': error_message,
         }))

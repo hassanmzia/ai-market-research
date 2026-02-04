@@ -164,25 +164,24 @@ export const researchAPI = {
 // ===================== Reports API =====================
 export const reportsAPI = {
   getReports: (params?: { search?: string; format?: string }) =>
-    api.get<SavedReport[]>('/api/reports/', { params }),
+    api.get<SavedReport[]>('/api/reports/saved/', { params }),
 
-  getReport: (id: number) => api.get<SavedReport>(`/api/reports/${id}/`),
+  getReport: (id: number) => api.get<SavedReport>(`/api/reports/saved/${id}/`),
 
   saveReport: (data: {
     task_id: string;
     title: string;
     description?: string;
     format?: string;
-  }) => api.post<SavedReport>('/api/reports/', data),
+  }) => api.post<SavedReport>('/api/reports/saved/', data),
 
-  deleteReport: (id: number) => api.delete(`/api/reports/${id}/`),
+  deleteReport: (id: number) => api.delete(`/api/reports/saved/${id}/`),
 
   shareReport: (id: number) =>
-    api.post<{ share_token: string; share_url: string }>(`/api/reports/${id}/share/`),
+    api.post<{ share_token: string; share_url: string }>(`/api/reports/saved/${id}/share/`),
 
   downloadReport: (id: number, format: string) =>
-    api.get(`/api/reports/${id}/download/`, {
-      params: { format },
+    api.get(`/api/reports/saved/${id}/export/${format}/`, {
       responseType: 'blob',
     }),
 };

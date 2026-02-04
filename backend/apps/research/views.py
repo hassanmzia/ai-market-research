@@ -18,6 +18,7 @@ from .serializers import (
     ResearchProjectCreateSerializer,
     ResearchTaskSerializer,
     ResearchTaskListSerializer,
+    ResearchResultSerializer,
     CompanyProfileSerializer,
     WatchlistItemSerializer,
     StartResearchSerializer,
@@ -47,6 +48,7 @@ class ResearchProjectViewSet(viewsets.ModelViewSet):
 class ResearchTaskViewSet(viewsets.ReadOnlyModelViewSet):
     """List and retrieve research tasks, plus start new research."""
     permission_classes = [IsAuthenticated]
+    lookup_field = 'task_id'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -57,6 +59,17 @@ class ResearchTaskViewSet(viewsets.ReadOnlyModelViewSet):
         return ResearchTask.objects.filter(
             project__user=self.request.user
         ).select_related('project', 'result')
+
+    @action(detail=True, methods=['get'], url_path='result')
+    def result(self, request, task_id=None):
+        """Return just the research result for a task."""
+        task = self.get_object()
+        if not hasattr(task, 'result') or task.result is None:
+            return Response(
+                {'detail': 'Result not available yet.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(ResearchResultSerializer(task.result).data)
 
     @action(detail=False, methods=['post'], url_path='start_research')
     def start_research(self, request):
@@ -98,8 +111,9 @@ class ResearchTaskViewSet(viewsets.ReadOnlyModelViewSet):
 
         logger.info(f"Research task {task.task_id} started for company: {company_name}")
 
+        task_data = ResearchTaskSerializer(task).data
         return Response(
-            ResearchTaskSerializer(task).data,
+            {'task_id': str(task.task_id), 'task': task_data},
             status=status.HTTP_201_CREATED,
         )
 
