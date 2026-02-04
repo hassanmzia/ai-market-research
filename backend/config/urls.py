@@ -8,7 +8,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
 
-from apps.research.models import ResearchTask, ResearchProject
+from django.db.models import Count
+from django.db.models.functions import TruncMonth
+
+from apps.research.models import ResearchTask, ResearchProject, WatchlistItem, CompanyProfile
 from apps.reports.models import SavedReport
 
 
@@ -28,46 +31,78 @@ def health_check(request):
 def dashboard_stats(request):
     """Dashboard statistics for the authenticated user."""
     user = request.user
-    total_projects = ResearchProject.objects.filter(user=user).count()
-    active_projects = ResearchProject.objects.filter(user=user, status='active').count()
-    total_tasks = ResearchTask.objects.filter(project__user=user).count()
-    completed_tasks = ResearchTask.objects.filter(project__user=user, status='completed').count()
-    failed_tasks = ResearchTask.objects.filter(project__user=user, status='failed').count()
-    pending_tasks = ResearchTask.objects.filter(
-        project__user=user,
-    ).exclude(
+    user_tasks = ResearchTask.objects.filter(project__user=user)
+
+    total_researches = user_tasks.count()
+    completed_researches = user_tasks.filter(status='completed').count()
+    active_researches = user_tasks.exclude(
         status__in=['completed', 'failed']
     ).count()
-    saved_reports = SavedReport.objects.filter(user=user).count()
-    recent_tasks = ResearchTask.objects.filter(
-        project__user=user
-    ).select_related('project').order_by('-created_at')[:5]
+    watchlist_count = WatchlistItem.objects.filter(user=user).count()
 
-    recent_tasks_data = [
+    # Recent researches as ResearchTask-shaped objects
+    recent_tasks = user_tasks.select_related(
+        'project', 'result'
+    ).order_by('-created_at')[:5]
+    recent_researches = [
         {
-            'id': str(task.task_id),
+            'id': task.pk,
+            'task_id': str(task.task_id),
+            'project': task.project_id,
             'company_name': task.company_name,
             'status': task.status,
             'progress': task.progress,
-            'project_name': task.project.name,
+            'started_at': task.started_at.isoformat() if task.started_at else None,
+            'completed_at': task.completed_at.isoformat() if task.completed_at else None,
+            'error_message': task.error_message,
             'created_at': task.created_at.isoformat(),
         }
         for task in recent_tasks
     ]
 
+    # Top sectors from completed research results
+    top_sectors = []
+    sector_counts = (
+        CompanyProfile.objects.filter(
+            research_count__gt=0,
+        )
+        .exclude(sector='')
+        .values('sector')
+        .annotate(count=Count('id'))
+        .order_by('-count')[:5]
+    )
+    for entry in sector_counts:
+        if entry['sector']:
+            top_sectors.append({
+                'sector': entry['sector'],
+                'count': entry['count'],
+            })
+
+    # Monthly activity for last 6 months
+    six_months_ago = timezone.now() - timezone.timedelta(days=180)
+    monthly_raw = (
+        user_tasks.filter(created_at__gte=six_months_ago)
+        .annotate(month=TruncMonth('created_at'))
+        .values('month')
+        .annotate(count=Count('id'))
+        .order_by('month')
+    )
+    monthly_activity = [
+        {
+            'month': entry['month'].strftime('%b %Y'),
+            'count': entry['count'],
+        }
+        for entry in monthly_raw
+    ]
+
     return Response({
-        'total_projects': total_projects,
-        'active_projects': active_projects,
-        'total_tasks': total_tasks,
-        'completed_tasks': completed_tasks,
-        'failed_tasks': failed_tasks,
-        'pending_tasks': pending_tasks,
-        'saved_reports': saved_reports,
-        'recent_tasks': recent_tasks_data,
-        'research_quota': {
-            'used': user.research_count_today,
-            'max': user.max_daily_research,
-        },
+        'total_researches': total_researches,
+        'completed_researches': completed_researches,
+        'active_researches': active_researches,
+        'watchlist_count': watchlist_count,
+        'recent_researches': recent_researches,
+        'top_sectors': top_sectors,
+        'monthly_activity': monthly_activity,
     })
 
 

@@ -25,7 +25,7 @@ class ReportAgent(BaseAgent):
         "swot_analysis",
         "strategic_recommendations",
     ]
-    mcp_tools: List[str] = ["generate_report"]
+    mcp_tools: List[str] = ["generate_report", "swot_analysis"]
 
     def _build_report_context(self, context: Dict[str, Any]) -> str:
         """Build a textual summary of all pipeline results for the LLM."""
@@ -161,30 +161,63 @@ class ReportAgent(BaseAgent):
             max_tokens=8192,
         )
 
-        # Step 3 -- Generate structured SWOT and recommendations via LLM JSON
+        # Step 3 -- Call MCP swot_analysis for web-sourced SWOT data
+        mcp_swot = await self.call_mcp_tool(
+            "swot_analysis",
+            {
+                "company_name": canonical_name,
+                "sector": sector,
+                "context": report_context[:4000],
+            },
+        )
+        mcp_swot_text = ""
+        if "error" not in mcp_swot:
+            swot_data = mcp_swot.get("swot", mcp_swot)
+            if isinstance(swot_data, dict):
+                mcp_swot_text = json.dumps(swot_data, default=str)
+            else:
+                mcp_swot_text = str(swot_data)
+
+        # Step 4 -- Generate structured SWOT and recommendations via LLM JSON
         structured = await self.call_llm_json(
             [
                 {
                     "role": "system",
                     "content": (
-                        "Extract structured data from the research context. "
-                        "Respond in JSON with keys: "
-                        '"executive_summary" (str - 2-3 sentences), '
-                        '"swot" (object with "strengths" list[str], "weaknesses" list[str], '
-                        '"opportunities" list[str], "threats" list[str]), '
-                        '"recommendations" (list of {"title": str, "description": str, '
-                        '"priority": str high/medium/low, "timeframe": str}), '
-                        '"key_metrics" (object with important numerical metrics), '
-                        '"risk_score" (float 0-10), '
-                        '"opportunity_score" (float 0-10).'
+                        "You are a senior strategy consultant. Using the full research "
+                        "context and web-sourced SWOT data, produce a detailed, "
+                        "company-specific strategic analysis.\n\n"
+                        "Respond in JSON with these keys:\n"
+                        '"executive_summary" - str, 3-4 sentences summarizing key findings.\n'
+                        '"swot" - object with:\n'
+                        '  "strengths" - list of 4-6 strings. Each strength must be specific '
+                        "to this company with concrete evidence (e.g., 'Market-leading GPU "
+                        "architecture with 80%+ data center AI chip market share' not just "
+                        "'Strong technology').\n"
+                        '  "weaknesses" - list of 3-5 strings. Specific vulnerabilities, '
+                        "not generic industry challenges.\n"
+                        '  "opportunities" - list of 4-6 strings. Concrete growth avenues '
+                        "with market size or trend data where possible.\n"
+                        '  "threats" - list of 3-5 strings. Specific competitive and macro '
+                        "risks facing this company.\n"
+                        '"recommendations" - list of 4-6 objects, each with "title" (str), '
+                        '"description" (str - 2-3 sentences of actionable detail), '
+                        '"priority" (high/medium/low), "timeframe" (str e.g., "0-6 months").\n'
+                        '"key_metrics" - object with important numerical metrics.\n'
+                        '"risk_score" - float 0-10 (10 = highest risk).\n'
+                        '"opportunity_score" - float 0-10 (10 = highest opportunity).'
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
-                        f"Company: {canonical_name}\n\n"
-                        f"Research data:\n{report_context[:6000]}\n\n"
-                        "Extract structured insights."
+                        f"Company: {canonical_name}\n"
+                        f"Sector: {sector}\n"
+                        f"Competitors: {', '.join(competitor_names)}\n\n"
+                        f"--- FULL RESEARCH DATA ---\n{report_context}\n\n"
+                        f"--- WEB-SOURCED SWOT DATA ---\n{mcp_swot_text}\n\n"
+                        "Produce the detailed strategic analysis. Every SWOT item must "
+                        "be specific to this company — no generic phrases."
                     ),
                 },
             ]

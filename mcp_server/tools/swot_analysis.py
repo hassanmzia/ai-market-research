@@ -167,7 +167,10 @@ async def run(
         queries.append(f"{sector} industry opportunities threats trends")
 
     all_text = context + " "
-    for query in queries:
+    for qi, query in enumerate(queries):
+        if qi > 0:
+            import time
+            time.sleep(1)
         results = _search(query)
         for r in results:
             all_text += f" {r.get('title', '')}. {r.get('body', '')}. "
