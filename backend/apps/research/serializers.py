@@ -95,23 +95,16 @@ class CompanyProfileSerializer(serializers.ModelSerializer):
 
 class WatchlistItemSerializer(serializers.ModelSerializer):
     """Serializer for watchlist items."""
-    company_name = serializers.SerializerMethodField()
-    company_sector = serializers.SerializerMethodField()
+    company = CompanyProfileSerializer(read_only=True)
 
     class Meta:
         model = WatchlistItem
         fields = [
-            'id', 'company', 'company_name', 'company_sector',
+            'id', 'company',
             'alert_on_news', 'alert_on_competitor_change',
             'notes', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
-
-    def get_company_name(self, obj):
-        return obj.company.name if obj.company else ''
-
-    def get_company_sector(self, obj):
-        return obj.company.sector if obj.company else ''
 
 
 class StartResearchSerializer(serializers.Serializer):
