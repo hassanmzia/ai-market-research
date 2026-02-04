@@ -64,6 +64,20 @@ class FinancialAgent(BaseAgent):
             result = await self._fetch_financial(cname)
             competitor_fins.append(result)
 
+        # Gather supplemental context from earlier pipeline stages
+        # Note: financial_research runs before deep_research in the pipeline,
+        # so only validation, sector_identification, and competitor_discovery
+        # are available at this point.
+        sector_data = context.get("sector_identification", {})
+        sector = sector_data.get("sector", "")
+        comp_data = context.get("competitor_discovery", {})
+        supplemental = (
+            f"Sector: {sector}\n"
+            f"Sub-sectors: {', '.join(sector_data.get('sub_sectors', []))}\n"
+            f"Sector reasoning: {sector_data.get('reasoning', '')}\n"
+            f"Competitors: {json.dumps([c.get('name') for c in comp_data.get('competitors', [])], default=str)}\n"
+        )
+
         # LLM analysis
         llm_result = await self.call_llm_json(
             [
@@ -71,12 +85,16 @@ class FinancialAgent(BaseAgent):
                     "role": "system",
                     "content": (
                         "You are a financial analyst. Given raw financial data for a "
-                        "company and its competitors, produce a structured financial "
-                        "comparison. Respond in JSON with keys: "
+                        "company and its competitors, plus supplemental research "
+                        "context, produce a structured financial comparison. "
+                        "Use your knowledge of these companies to provide realistic "
+                        "financial figures even if the raw search data is limited. "
+                        "Respond in JSON with keys: "
                         '"company_financials" (object with "revenue", "revenue_growth", '
                         '"profit_margin", "market_cap", "employees", "founded", '
                         '"headquarters", "key_metrics" dict), '
-                        '"competitor_financials" (list of same structure), '
+                        '"competitor_financials" (list of objects each with "company" '
+                        'str plus same fields as company_financials), '
                         '"financial_comparison" (str summary), '
                         '"financial_health_score" (float 0-10).'
                     ),
@@ -85,9 +103,14 @@ class FinancialAgent(BaseAgent):
                     "role": "user",
                     "content": (
                         f"Target company: {canonical_name}\n"
+                        f"Sector: {sector}\n"
+                        f"Competitors: {', '.join(competitor_names)}\n\n"
                         f"Company financial data: {json.dumps(company_fin)}\n\n"
                         f"Competitor financial data: {json.dumps(competitor_fins)}\n\n"
-                        "Analyze and compare the financial positions."
+                        f"Supplemental research context:\n{supplemental}\n\n"
+                        "Analyze and compare the financial positions. If raw search "
+                        "data is sparse, use the supplemental context and your "
+                        "knowledge to provide informed financial estimates."
                     ),
                 },
             ]
